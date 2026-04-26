@@ -239,6 +239,166 @@ export default function App() {
   const animRef = useRef(null);
   const starsRef = useRef(stars);
   starsRef.current = stars;
+  const audioCtxRef = useRef(null);
+
+  // ── Web Audio 사운드 시스템 ─────────────────────────────────────────
+  function getAudioCtx() {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    // iOS/iPad: suspended 상태면 resume
+    if (audioCtxRef.current.state === "suspended") {
+      audioCtxRef.current.resume();
+    }
+    return audioCtxRef.current;
+  }
+
+  function playSound(type) {
+    try {
+      const ctx = getAudioCtx();
+      const now = ctx.currentTime;
+
+      if (type === "launch") {
+        // 발사음: 짧은 whoosh
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.18);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        osc.start(now); osc.stop(now + 0.18);
+
+      } else if (type === "hit") {
+        // 충돌음: 타악기 느낌의 임팩트
+        const buf = ctx.createBuffer(1, ctx.sampleRate * 0.12, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2.5);
+        }
+        const src = ctx.createBufferSource();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        src.buffer = buf;
+        filter.type = "bandpass";
+        filter.frequency.value = 800;
+        filter.Q.value = 0.8;
+        src.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.7, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        src.start(now);
+
+        // 임팩트 보조음 (낮은 퍽)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2); gain2.connect(ctx.destination);
+        osc2.type = "sine";
+        osc2.frequency.setValueAtTime(200, now);
+        osc2.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+        gain2.gain.setValueAtTime(0.4, now);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        osc2.start(now); osc2.stop(now + 0.1);
+
+      } else if (type === "destroy") {
+        // 별 소멸음: 폭발 + 반짝임
+        const buf = ctx.createBuffer(1, ctx.sampleRate * 0.4, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 1.5) * 0.8;
+        }
+        const src = ctx.createBufferSource();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        src.buffer = buf;
+        filter.type = "lowpass"; filter.frequency.value = 600;
+        src.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.8, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        src.start(now);
+
+        // 별 소멸 반짝 음
+        [0, 0.05, 0.1].forEach((delay, i) => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.connect(g); g.connect(ctx.destination);
+          osc.type = "sine";
+          osc.frequency.value = 800 + i * 300;
+          g.gain.setValueAtTime(0.15, now + delay);
+          g.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.15);
+          osc.start(now + delay); osc.stop(now + delay + 0.15);
+        });
+
+      } else if (type === "skill") {
+        // 스킬 발동음: 웅장한 차징 + 방전
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = "square";
+        osc.frequency.setValueAtTime(100, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.3);
+        gain.gain.setValueAtTime(0.0, now);
+        gain.gain.linearRampToValueAtTime(0.35, now + 0.15);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.start(now); osc.stop(now + 0.4);
+
+        // 방전 노이즈
+        const buf2 = ctx.createBuffer(1, ctx.sampleRate * 0.2, ctx.sampleRate);
+        const d2 = buf2.getChannelData(0);
+        for (let i = 0; i < d2.length; i++) d2[i] = (Math.random() * 2 - 1) * 0.3;
+        const src2 = ctx.createBufferSource();
+        const g2 = ctx.createGain();
+        const f2 = ctx.createBiquadFilter();
+        src2.buffer = buf2; f2.type = "highpass"; f2.frequency.value = 2000;
+        src2.connect(f2); f2.connect(g2); g2.connect(ctx.destination);
+        g2.gain.setValueAtTime(0.4, now + 0.25);
+        g2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        src2.start(now + 0.25);
+
+      } else if (type === "freeze") {
+        // 얼음: 크리스탈 음색
+        [0, 0.08, 0.16, 0.22].forEach((delay, i) => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.connect(g); g.connect(ctx.destination);
+          osc.type = "triangle";
+          osc.frequency.value = 1200 - i * 100;
+          g.gain.setValueAtTime(0.2, now + delay);
+          g.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.3);
+          osc.start(now + delay); osc.stop(now + delay + 0.3);
+        });
+
+      } else if (type === "victory") {
+        // 승리 팡파레
+        const notes = [523, 659, 784, 1047];
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.connect(g); g.connect(ctx.destination);
+          osc.type = "triangle";
+          osc.frequency.value = freq;
+          g.gain.setValueAtTime(0.25, now + i * 0.12);
+          g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.35);
+          osc.start(now + i * 0.12); osc.stop(now + i * 0.12 + 0.35);
+        });
+      }
+    } catch(e) { /* 사운드 실패해도 게임은 계속 */ }
+  }
+
+  // ── window 레벨 이벤트 (iPad 드래그 버그 완전 차단) ─────────────────
+  useEffect(() => {
+    const preventDefault = (e) => { if (dragging && e.cancelable) e.preventDefault(); };
+    window.addEventListener("touchmove", preventDefault, { passive: false });
+    window.addEventListener("touchend", onMouseUp, { passive: true });
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("touchmove", preventDefault);
+      window.removeEventListener("touchend", onMouseUp);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [dragging, onMouseMove, onMouseUp]);
 
   // 배경 별 (장식용)
   const bgStars = useRef(
@@ -283,6 +443,8 @@ export default function App() {
               a.vx -= dot * nx; a.vy -= dot * ny;
               b.vx += dot * nx; b.vy += dot * ny;
               moving = true;
+              // 충돌음 (속도가 클수록)
+              if (Math.abs(dot) > 3) playSound("hit");
             }
           }
         }
@@ -299,6 +461,7 @@ export default function App() {
             s.vx = 0; s.vy = 0; s.revive = false;
           } else {
             s.alive = false;
+            playSound("destroy");
           }
           addParticles(s.x, s.y, s.player === 1 ? p1Zodiac?.color : p2Zodiac?.color);
         }
@@ -307,8 +470,8 @@ export default function App() {
       // 승리 판정
       const p1Alive = next.filter(s => s.player === 1 && s.alive).length;
       const p2Alive = next.filter(s => s.player === 2 && s.alive).length;
-      if (p1Alive === 0) { setWinner(2); setPhase("result"); }
-      if (p2Alive === 0) { setWinner(1); setPhase("result"); }
+      if (p1Alive === 0) { setWinner(2); setPhase("result"); playSound("victory"); }
+      if (p2Alive === 0) { setWinner(1); setPhase("result"); playSound("victory"); }
 
       return next;
     });
@@ -352,19 +515,22 @@ export default function App() {
     e.preventDefault();
     if (star.player !== turn) return;
     if (star.frozen) { setLog("❄️ 얼어있어서 움직일 수 없어요!"); return; }
-    const pos = getSVGPos(e);
+    const pos = getSVGPos(e.touches ? e.touches[0] : e);
     setDragging({ id: star.id, startX: star.x, startY: star.y });
     setDragPos(pos);
   }
 
-  function onMouseMove(e) {
+  const onMouseMove = useCallback((e) => {
     if (!dragging) return;
-    setDragPos(getSVGPos(e));
-  }
+    if (e.cancelable) e.preventDefault();
+    const pos = e.touches ? getSVGPos(e.touches[0]) : getSVGPos(e);
+    setDragPos(pos);
+  }, [dragging]);
 
-  function onMouseUp(e) {
+  const onMouseUp = useCallback((e) => {
     if (!dragging) return;
-    const end = getSVGPos(e);
+    const rawE = e.changedTouches ? e.changedTouches[0] : e;
+    const end = getSVGPos(rawE);
     const star = starsRef.current.find(s => s.id === dragging.id);
     if (star) {
       const dx = dragging.startX - end.x;
@@ -398,15 +564,17 @@ export default function App() {
         setShieldActive(p => ({ ...p, [turn]: false }));
         setTurn(t => t === 1 ? 2 : 1);
         setLog("");
+        playSound("launch");
       }
     }
     setDragging(null); setDragPos(null);
-  }
+  }, [dragging, turn, doublePower]);
 
   // ── 스킬 시네마틱 트리거 ───────────────────────────────────────────
   function triggerCinematic(zodiac, onComplete) {
     const fx = SKILL_FX[zodiac.skillType] || {};
     setSkillCinematic({ zodiac, flavorText: zodiac.skillFlavorText });
+    playSound(zodiac.skillType === "freeze" ? "freeze" : "skill");
     if (fx.screenTint) {
       setScreenTint(fx.screenTint);
       setTimeout(() => setScreenTint(null), 1800);
@@ -737,10 +905,6 @@ export default function App() {
             ref={svgRef}
             viewBox={`0 0 ${BOARD_SIZE} ${BOARD_SIZE}`}
             style={styles.board}
-            onMouseMove={onMouseMove}
-            onMouseUp={onMouseUp}
-            onTouchMove={e => onMouseMove(e.touches[0] ? e : e)}
-            onTouchEnd={e => onMouseUp(e.changedTouches[0] ? { clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY } : e)}
           >
             <defs>
               <radialGradient id="boardGrad" cx="50%" cy="50%" r="70%">
@@ -1076,6 +1240,12 @@ const styles = {
     fontFamily: "'Segoe UI', system-ui, sans-serif",
     color: "white", padding: 12, boxSizing: "border-box",
     position: "relative",
+    // iPad 드래그 버그 방지
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    touchAction: "none",
+    WebkitTouchCallout: "none",
+    overscrollBehavior: "none",
   },
   selectWrap: {
     position: "relative", zIndex: 10, width: "100%", maxWidth: 520,
@@ -1141,7 +1311,7 @@ const styles = {
     overflow: "hidden", border: "2px solid rgba(255,255,255,0.08)",
     boxShadow: "0 0 40px rgba(0,0,100,0.5)",
   },
-  board: { width: "100%", height: "100%", display: "block" },
+  board: { width: "100%", height: "100%", display: "block", touchAction: "none" },
   bottom: { display: "flex", flexDirection: "column", gap: 8 },
   logBox: {
     textAlign: "center", fontSize: 12, padding: "8px 14px",
