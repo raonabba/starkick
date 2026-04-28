@@ -145,13 +145,27 @@ function initStars(z,p){
   }));
 }
 
-// ── Web Audio ────────────────────────────────────────────────────
+// ── Web Audio — iOS/iPad 사운드 잠금 해제 ──────────────────────────
 let _ac=null;
 function getAC(){
   if(!_ac)_ac=new(window.AudioContext||window.webkitAudioContext)();
   if(_ac.state==="suspended")_ac.resume();
   return _ac;
 }
+// 첫 터치/클릭 시 AudioContext 미리 활성화 (iOS 정책 대응)
+function unlockAudio(){
+  try{
+    const ctx=getAC();
+    // 무음 버퍼 재생으로 잠금 해제
+    const buf=ctx.createBuffer(1,1,22050);
+    const src=ctx.createBufferSource();
+    src.buffer=buf;src.connect(ctx.destination);src.start(0);
+  }catch(e){}
+  document.removeEventListener("touchstart",unlockAudio);
+  document.removeEventListener("mousedown",unlockAudio);
+}
+document.addEventListener("touchstart",unlockAudio,{once:true,passive:true});
+document.addEventListener("mousedown",unlockAudio,{once:true,passive:true});
 function playSound(type){
   try{
     const ctx=getAC(),now=ctx.currentTime;
@@ -408,7 +422,8 @@ function App(){
   const[cinematic,setCinematic]=useState(null);
   const[shake,setShake]=useState(false);
   const[tint,setTint]=useState(null);
-  const[dirPicker,setDirPicker]=useState(false); // 황금화살 방향 선택
+  // 황금화살 3단계: null → {step:"pick_star"} → {step:"pick_dir", starId}
+  const[piercingState,setPiercingState]=useState(null);
   const svgRef=useRef(null);
   const starsRef=useRef(stars);
   starsRef.current=stars;
@@ -503,6 +518,15 @@ function App(){
 
   function onStarDown(e,star){
     e.preventDefault();e.stopPropagation();
+
+    // 황금화살 별 선택 모드
+    if(piercingState?.step==="pick_star"){
+      if(star.player!==turnRef.current){setLog("⚠️ 내 별을 선택해야 해요!");return;}
+      setPiercingState({step:"pick_dir",starId:star.id});
+      setLog("🏹 이제 방향을 선택하세요!");
+      return;
+    }
+
     if(star.player!==turnRef.current)return;
     if(star.frozen){setLog("❄️ 얼어있어서 움직일 수 없어요!");return;}
     const raw=e.touches?e.touches[0]:e;
@@ -626,28 +650,33 @@ function App(){
       setLog(`👥 ${z.skillName} - 상대가 혼란에 빠졌어요!`);
       setTurn(tt=>tt===1?2:1);
     }else if(type==="piercing"){
-      // ✅ 방향 선택 UI 표시 (시네마틱 후)
-      setDirPicker(true);
+      setPiercingState({step:"pick_star"});
+      setLog("🏹 황금 화살! 쏠 별을 탭해서 선택하세요!");
+      setCd(p=>({...p,[t]:CD}));
+      return;
     }
     setCd(p=>({...p,[t]:CD}));
   }
 
   function firePiercing(angleDeg){
-    setDirPicker(false);
-    if(angleDeg===null){setLog("취소했어요.");setTurn(t=>t===1?2:1);return;}
+    const starId=piercingState?.starId;
+    setPiercingState(null);
     const t=turnRef.current;
+    if(angleDeg===null){
+      setLog("취소됐어요.");
+      setTurn(tt=>tt===1?2:1);
+      return;
+    }
     const rad=angleDeg*Math.PI/180;
-    const speed=22;
-    // 내 별 중 하나를 선택된 방향으로 발사
-    const myStar=starsRef.current.find(s=>s.player===t&&s.alive);
-    if(myStar){
-      setStars(prev=>prev.map(s=>s.id===myStar.id?
-        {...s,vx:Math.cos(rad)*speed,vy:Math.sin(rad)*speed,glowing:true}:s));
-      setTimeout(()=>setStars(prev=>prev.map(s=>s.id===myStar.id?{...s,glowing:false}:s)),1000);
-      setLog(`🏹 황금 화살 발사!`);
+    const target=starsRef.current.find(s=>s.id===starId&&s.alive);
+    if(target){
+      setStars(prev=>prev.map(s=>s.id===target.id?
+        {...s,vx:Math.cos(rad)*24,vy:Math.sin(rad)*24,glowing:true}:s));
+      setTimeout(()=>setStars(prev=>prev.map(s=>s.id===target.id?{...s,glowing:false}:s)),1000);
+      setLog("🏹 황금 화살 발사!");
       playSound("launch");
     }
-    setTurn(t=>t===1?2:1);
+    setTurn(tt=>tt===1?2:1);
   }
 
   function doSkill(){
@@ -795,7 +824,7 @@ function App(){
       background:tint,animation:"tintFlash 1.8s ease forwards"}}),
     cinematic&&h(SkillCinematic,{zodiac:cinematic.zodiac,flavorText:cinematic.flavorText,
       onClose:()=>setCinematic(null)}),
-    dirPicker&&h(DirectionPicker,{onSelect:firePiercing,color:curZ?.color||"#FFA07A"}),
+    piercingState?.step==="pick_dir"&&h(DirectionPicker,{onSelect:firePiercing,color:curZ?.color||"#FFA07A"}),
 
     h("div",{style:{position:"relative",zIndex:10,width:"100%",maxWidth:540,
       display:"flex",flexDirection:"column",gap:8}},
@@ -837,7 +866,7 @@ function App(){
           ...getLiveLines(p2Stars).map((l,i)=>h("line",{key:`ll2${i}`,x1:l.x1,y1:l.y1,x2:l.x2,y2:l.y2,
             stroke:p2Z?.color,strokeWidth:1,opacity:0.2})),
 
-          // 드래그 가이드
+          // 드래그 가이드선 (기존 유지)
           drag&&dragPos&&(()=>{
             const star=stars.find(s=>s.id===drag.id);if(!star)return null;
             const dx=star.x-dragPos.x,dy=star.y-dragPos.y,len=Math.hypot(dx,dy);
@@ -851,24 +880,47 @@ function App(){
             );
           })(),
 
+          // 황금화살 별 선택 모드 안내
+          piercingState?.step==="pick_star"&&h("rect",{
+            width:B,height:B,fill:"rgba(255,160,50,0.05)",rx:12,pointerEvents:"none"
+          }),
+          piercingState?.step==="pick_star"&&h("text",{
+            x:B/2,y:28,textAnchor:"middle",
+            fill:"rgba(255,210,80,0.95)",fontSize:13,fontWeight:"bold",pointerEvents:"none"
+          },"🏹 쏠 별을 탭해서 선택하세요"),
+
           // 파티클
           ...particles.map(p=>h("circle",{key:p.id,cx:p.x,cy:p.y,r:3,fill:p.color,opacity:0.8},
             h("animate",{attributeName:"opacity",from:"0.8",to:"0",dur:"0.8s",fill:"freeze"}),
             h("animate",{attributeName:"r",from:"3",to:"0.5",dur:"0.8s",fill:"freeze"})
           )),
 
-          // 별(이미지 원형)
+          // 별 (이미지 원형) — 황금화살 선택 강조 포함
           ...stars.map(star=>{
             if(!star.alive)return null;
             const z=star.player===1?p1Z:p2Z;
             const isDrag=drag?.id===star.id;
+            const isPickable=piercingState?.step==="pick_star"&&star.player===turn;
+            const isSelected=piercingState?.starId===star.id;
             return h("g",{key:star.id,
               onMouseDown:e=>onStarDown(e,star),
               onTouchStart:e=>{e.preventDefault();e.stopPropagation();onStarDown(e,star);},
-              style:{cursor:star.player===turn?"grab":"default"}},
+              style:{cursor:(star.player===turn||isPickable)?"pointer":"default"}},
+              // 황금 화살 선택 가능한 별: 회전 점선 링
+              isPickable&&h("circle",{cx:star.x,cy:star.y,r:R+14,
+                fill:"none",stroke:"#FFD700",strokeWidth:2.5,opacity:0.85,strokeDasharray:"6,4"},
+                h("animateTransform",{attributeName:"transform",type:"rotate",
+                  from:`0 ${star.x} ${star.y}`,to:`360 ${star.x} ${star.y}`,
+                  dur:"1.2s",repeatCount:"indefinite"})
+              ),
+              // 선택된 별: 골드 강조
+              isSelected&&h("circle",{cx:star.x,cy:star.y,r:R+10,
+                fill:"rgba(255,215,0,0.2)",stroke:"#FFD700",strokeWidth:3}),
               h(StarPiece,{x:star.x,y:star.y,r:isDrag?R*1.15:R,
-                zodiacId:z?.id,color:z?.color||"#fff",
-                glow:z?.glowColor,glowing:isDrag||star.glowing,
+                zodiacId:z?.id,
+                color:isSelected?"#FFD700":z?.color||"#fff",
+                glow:z?.glowColor,
+                glowing:isDrag||star.glowing||isSelected,
                 frozen:star.frozen,shielded:star.shielded,isDragging:isDrag})
             );
           })
