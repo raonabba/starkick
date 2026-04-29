@@ -56,82 +56,98 @@ const h=React.createElement;
 
 // ── 스킬 FX ──────────────────────────────────────────────────────
 const SKILL_FX={
-  power_shot:{shake:true, screenTint:"rgba(255,107,107,0.15)"},
-  shield:    {shake:false,screenTint:"rgba(78,205,196,0.22)"},
-  clone:     {shake:false,screenTint:"rgba(255,230,109,0.15)"},
-  freeze:    {shake:true, screenTint:"rgba(168,230,207,0.2)"},
-  revive:    {shake:false,screenTint:"rgba(255,179,71,0.18)"},
-  respawn:   {shake:false,screenTint:"rgba(221,160,221,0.18)"},
-  reset:     {shake:true, screenTint:"rgba(135,206,235,0.25)"},
-  double_power:{shake:true,screenTint:"rgba(255,71,87,0.2)"},
-  piercing:  {shake:true, screenTint:"rgba(255,160,122,0.18)"},
-  teleport:  {shake:true, screenTint:"rgba(152,216,200,0.2)"},
-  heal:      {shake:false,screenTint:"rgba(126,200,227,0.18)"},
-  relocate:  {shake:false,screenTint:"rgba(184,169,201,0.18)"},
+  power_shot:   {shake:true, screenTint:"rgba(255,107,107,0.15)"},
+  shield:       {shake:false,screenTint:"rgba(78,205,196,0.22)"},
+  clone:        {shake:false,screenTint:"rgba(255,230,109,0.15)"},
+  freeze:       {shake:true, screenTint:"rgba(168,230,207,0.2)"},
+  revive_once:  {shake:false,screenTint:"rgba(255,179,71,0.18)"},
+  respawn_once: {shake:false,screenTint:"rgba(221,160,221,0.18)"},
+  reset:        {shake:true, screenTint:"rgba(135,206,235,0.25)"},
+  double_power: {shake:true, screenTint:"rgba(255,71,87,0.2)"},
+  piercing:     {shake:true, screenTint:"rgba(255,160,122,0.18)"},
+  teleport:     {shake:true, screenTint:"rgba(152,216,200,0.2)"},
+  heal_once:    {shake:false,screenTint:"rgba(126,200,227,0.18)"},
+  relocate:     {shake:false,screenTint:"rgba(184,169,201,0.18)"},
+  push_all:     {shake:true, screenTint:"rgba(255,100,100,0.2)"},
+  swap:         {shake:true, screenTint:"rgba(200,150,255,0.2)"},
+  scatter:      {shake:true, screenTint:"rgba(255,200,50,0.18)"},
+  gravity:      {shake:false,screenTint:"rgba(100,200,255,0.18)"},
 };
 
-// ── 황도 12궁 ──────────────────────────────────────────────────────
+// 각 별자리: 공격스킬(atkSkill) + 방어스킬(defSkill)
+// skillUseLimit: 게임당 사용 횟수 제한 (null = 무제한)
 const ZODIAC=[
-  {id:"aries",      month:"3월", name:"양자리",    emoji:"♈",color:"#FF6B6B",glowColor:"rgba(255,107,107,0.5)",
+  {id:"aries",month:"3월",name:"양자리",emoji:"♈",color:"#FF6B6B",glowColor:"rgba(255,107,107,0.5)",
    myth:"신들의 왕 제우스가 황금 양을 하늘로 보내 프릭소스 남매를 구했어요. 그 양의 황금빛 털이 황금 양털이 되었고, 영웅 이아손이 찾아 떠난 모험의 시작이에요!",
-   skillName:"황금 돌진",skillDesc:"선택한 아군 별 하나를 2배 속도로 강하게 발사해요!",
-   skillFlavorText:"황금빛으로 빛나는 양이 강력한 에너지를 내뿜으며 정면을 향해 무서운 속도로 돌진합니다!",
-   skillIcon:"🐏",skillType:"power_shot",starPositions:[[50,50],[70,35],[85,50],[65,65],[45,65]]},
-  {id:"taurus",     month:"4월", name:"황소자리",  emoji:"♉",color:"#4ECDC4",glowColor:"rgba(78,205,196,0.5)",
+   atkSkill:{name:"황금 돌진",desc:"선택한 내 별을 3배 파워로 발사!",icon:"🐏",type:"power_shot",flavorText:"황금빛 양이 강력한 에너지를 내뿜으며 정면을 향해 돌진합니다!",limit:null},
+   defSkill:{name:"불꽃 방어막",desc:"내 별 전체에 2초 쉴드!",icon:"🔥",type:"shield",flavorText:"황금빛 불꽃이 모든 별을 감싸 공격을 막아냅니다!",limit:null},
+   starPositions:[[50,50],[70,35],[85,50],[65,65],[45,65]]},
+
+  {id:"taurus",month:"4월",name:"황소자리",emoji:"♉",color:"#4ECDC4",glowColor:"rgba(78,205,196,0.5)",
    myth:"제우스가 황소로 변신해 아름다운 에우로파 공주를 크레타 섬으로 데려갔어요. 그 황소의 모습이 하늘의 별자리가 되었답니다!",
-   skillName:"철벽 방어",skillDesc:"이번 턴에 어떤 공격에도 내 별이 밀려나지 않아요!",
-   skillFlavorText:"우직한 거대 황소가 땅에 단단히 발을 붙이고 전신을 감싸는 푸른 무적 쉴드를 생성합니다!",
-   skillIcon:"🛡️",skillType:"shield",starPositions:[[50,50],[35,40],[65,40],[30,60],[70,60]]},
-  {id:"gemini",     month:"5월", name:"쌍둥이자리",emoji:"♊",color:"#FFE66D",glowColor:"rgba(255,230,109,0.5)",
+   atkSkill:{name:"대지 강타",desc:"상대 별 하나를 랜덤 위치로 날려버려요!",icon:"💥",type:"teleport",flavorText:"황소가 대지를 강타하며 충격파로 상대를 날려버립니다!",limit:null},
+   defSkill:{name:"철벽 방어",desc:"4초간 내 별이 절대 밀려나지 않아요!",icon:"🛡️",type:"shield",flavorText:"우직한 황소가 땅에 발을 붙이고 완벽한 쉴드를 생성합니다!",limit:null},
+   starPositions:[[50,50],[35,40],[65,40],[30,60],[70,60]]},
+
+  {id:"gemini",month:"5월",name:"쌍둥이자리",emoji:"♊",color:"#FFE66D",glowColor:"rgba(255,230,109,0.5)",
    myth:"카스토르와 폴룩스, 사이좋은 쌍둥이 형제예요. 폴룩스는 불사신인데 형을 너무 사랑해서 제우스에게 부탁해 둘 다 별이 되었어요!",
-   skillName:"쌍둥이 분신",skillDesc:"아군 별 하나가 두 곳에 동시에 나타나 상대를 혼란에 빠뜨려요!",
-   skillFlavorText:"두 명의 빛나는 쌍둥이 형체가 서로의 움직임을 거울처럼 반사하며 나타납니다!",
-   skillIcon:"👥",skillType:"clone",starPositions:[[35,40],[65,40],[35,60],[65,60],[50,50]]},
-  {id:"cancer",     month:"6월", name:"게자리",    emoji:"♋",color:"#A8E6CF",glowColor:"rgba(168,230,207,0.5)",
+   atkSkill:{name:"별자리 교환",desc:"내 별과 상대 별의 위치를 맞바꿔요!",icon:"🔀",type:"swap",flavorText:"쌍둥이가 순간이동으로 위치를 뒤바꿔 상대를 혼란에 빠뜨립니다!",limit:null},
+   defSkill:{name:"분신술",desc:"내 별 하나를 안전한 위치로 이동해요!",icon:"👥",type:"relocate",flavorText:"분신이 나타나 진짜 별을 안전한 곳으로 데려갑니다!",limit:null},
+   starPositions:[[35,40],[65,40],[35,60],[65,60],[50,50]]},
+
+  {id:"cancer",month:"6월",name:"게자리",emoji:"♋",color:"#A8E6CF",glowColor:"rgba(168,230,207,0.5)",
    myth:"헤라 여신이 헤라클레스의 발을 물라고 보낸 게예요. 헤라클레스에게 밟혀 죽었지만, 헤라가 고마워서 하늘의 별자리로 만들어 주었어요!",
-   skillName:"집게 포착",skillDesc:"상대방 별 하나를 잠깐 얼려서 다음 턴에 움직이지 못하게 해요!",
-   skillFlavorText:"거대한 파란 게 집게발이 우주 공간에서 튀어나와 상대 별을 단단히 움켜쥐며 순식간에 얼려버립니다!",
-   skillIcon:"🦀",skillType:"freeze",starPositions:[[50,45],[35,55],[65,55],[40,70],[60,70]]},
-  {id:"leo",        month:"7월", name:"사자자리",  emoji:"♌",color:"#FFB347",glowColor:"rgba(255,179,71,0.5)",
+   atkSkill:{name:"집게 포착",desc:"상대 별 하나를 4초간 얼려요!",icon:"🦀",type:"freeze",flavorText:"거대한 집게발이 상대 별을 단단히 움켜쥐며 얼려버립니다!",limit:null},
+   defSkill:{name:"물 흐름",desc:"내 별 하나를 안전한 위치로 이동해요!",icon:"🌊",type:"relocate",flavorText:"파도처럼 흘러 위기를 피해 안전한 자리로 이동합니다!",limit:null},
+   starPositions:[[50,45],[35,55],[65,55],[40,70],[60,70]]},
+
+  {id:"leo",month:"7월",name:"사자자리",emoji:"♌",color:"#FFB347",glowColor:"rgba(255,179,71,0.5)",
    myth:"헤라클레스가 12가지 과업 중 첫 번째로 네메아의 사자를 물리쳤어요. 어떤 무기로도 상처 입지 않는 사자를 맨손으로 쓰러뜨렸답니다!",
-   skillName:"불사의 포효",skillDesc:"한 턴 동안 내 별이 밀려나도 바로 돌아와요! (1회 부활)",
-   skillFlavorText:"붉은 갈기를 휘날리는 위엄 있는 사자가 우주를 향해 포효합니다. 황금빛 음파 에너지가 죽음을 초월하는 불사의 힘을 품고 있어요!",
-   skillIcon:"🦁",skillType:"revive",starPositions:[[50,40],[30,50],[70,50],[35,65],[65,65]]},
-  {id:"virgo",      month:"8월", name:"처녀자리",  emoji:"♍",color:"#DDA0DD",glowColor:"rgba(221,160,221,0.5)",
+   atkSkill:{name:"포효 충격파",desc:"모든 상대 별을 바깥으로 밀어내요!",icon:"🦁",type:"push_all",flavorText:"사자의 포효가 충격파가 되어 모든 상대 별을 휩쓸어 버립니다!",limit:null},
+   defSkill:{name:"불사의 갈기",desc:"죽은 내 별 1개만 부활! (게임당 1회)",icon:"👑",type:"revive_once",flavorText:"황금 갈기가 빛나며 소멸한 별에 생명을 불어넣습니다!",limit:1},
+   starPositions:[[50,40],[30,50],[70,50],[35,65],[65,65]]},
+
+  {id:"virgo",month:"8월",name:"처녀자리",emoji:"♍",color:"#DDA0DD",glowColor:"rgba(221,160,221,0.5)",
    myth:"곡식의 여신 데메테르의 딸 페르세포네예요. 봄이 오면 땅 위로 올라오고, 겨울엔 지하세계로 돌아가는 계절의 비밀을 간직한 별자리예요!",
-   skillName:"풍요의 씨앗",skillDesc:"밀려난 내 별 하나를 원하는 자리에 다시 소환해요!",
-   skillFlavorText:"천상의 처녀가 부드러운 빛을 뿜어내는 씨앗을 우주 공간에 뿌립니다. 씨앗이 닿은 곳마다 죽은 별들이 다시 빛나는 생명의 존재로 부활해요!",
-   skillIcon:"🌾",skillType:"respawn",starPositions:[[50,35],[40,50],[60,50],[45,65],[55,65]]},
-  {id:"libra",      month:"9월", name:"천칭자리",  emoji:"♎",color:"#87CEEB",glowColor:"rgba(135,206,235,0.5)",
+   atkSkill:{name:"씨앗 소환",desc:"죽은 내 별 1개 부활! (게임당 2회)",icon:"🌾",type:"respawn_once",flavorText:"생명의 씨앗이 소멸한 별을 다시 소환해냅니다!",limit:2},
+   defSkill:{name:"정화의 빛",desc:"내 별의 얼음·쉴드 상태를 모두 해제해요!",icon:"✨",type:"cleanse",flavorText:"순수한 빛이 모든 상태 이상을 정화합니다!",limit:null},
+   starPositions:[[50,35],[40,50],[60,50],[45,65],[55,65]]},
+
+  {id:"libra",month:"9월",name:"천칭자리",emoji:"♎",color:"#87CEEB",glowColor:"rgba(135,206,235,0.5)",
    myth:"정의의 여신 아스트라이아가 가진 황금 저울이에요. 선한 마음과 나쁜 마음을 달아보는 저울로, 공정함의 상징이에요!",
-   skillName:"평형의 저울",skillDesc:"모든 별의 위치를 처음 자리로 초기화해요!",
-   skillFlavorText:"거대한 황금 저울이 우주의 중심에서 완벽한 평형을 이룹니다. 빛과 어둠의 에너지가 융합되어 전체 초기화의 마법 파동이 뻗어나가요!",
-   skillIcon:"⚖️",skillType:"reset",starPositions:[[50,45],[30,55],[70,55],[40,65],[60,65]]},
-  {id:"scorpio",    month:"10월",name:"전갈자리",  emoji:"♏",color:"#FF4757",glowColor:"rgba(255,71,87,0.5)",
-   myth:"사냥꾼 오리온이 '모든 동물을 다 잡겠다!'고 뽐내자, 가이아 여신이 전갈을 보내 혼내줬어요. 전갈이 이겨서 하늘의 별자리가 되었답니다!",
-   skillName:"독침 공격",skillDesc:"다음 발사 공격이 2배의 힘으로 강력하게 날아가요!",
-   skillFlavorText:"어둠 속에서 전갈의 꼬리가 번뜩이며 날카로운 독침을 내뿝니다. 치명적인 자줏빛 독기가 2배의 파괴적 힘으로 폭발해요!",
-   skillIcon:"🦂",skillType:"double_power",starPositions:[[50,40],[35,50],[65,50],[40,65],[60,70]]},
-  {id:"sagittarius",month:"11월",name:"사수자리",  emoji:"♐",color:"#FFA07A",glowColor:"rgba(255,160,122,0.5)",
+   atkSkill:{name:"중력 당기기",desc:"상대 별들을 중앙으로 끌어당겨요!",icon:"⚖️",type:"gravity",flavorText:"저울이 균형을 찾으며 모든 것을 중앙으로 끌어당깁니다!",limit:null},
+   defSkill:{name:"평형 초기화",desc:"모든 별을 처음 위치로 되돌려요! (게임당 1회)",icon:"🔄",type:"reset",flavorText:"황금 저울이 기울어진 운명을 다시 처음으로 되돌립니다!",limit:1},
+   starPositions:[[50,45],[30,55],[70,55],[40,65],[60,65]]},
+
+  {id:"scorpio",month:"10월",name:"전갈자리",emoji:"♏",color:"#FF4757",glowColor:"rgba(255,71,87,0.5)",
+   myth:"사냥꾼 오리온이 모든 동물을 다 잡겠다고 뽐내자, 가이아 여신이 전갈을 보내 혼내줬어요. 전갈이 이겨서 하늘의 별자리가 되었답니다!",
+   atkSkill:{name:"독침 공격",desc:"다음 발사가 3배 파워로 날아가요!",icon:"🦂",type:"double_power",flavorText:"치명적인 독침이 3배의 파괴력으로 날아갑니다!",limit:null},
+   defSkill:{name:"어둠 은신",desc:"내 별 하나를 랜덤 위치로 피신시켜요!",icon:"🌑",type:"relocate",flavorText:"어둠 속으로 사라져 상대가 찾을 수 없는 곳으로 이동합니다!",limit:null},
+   starPositions:[[50,40],[35,50],[65,50],[40,65],[60,70]]},
+
+  {id:"sagittarius",month:"11월",name:"사수자리",emoji:"♐",color:"#FFA07A",glowColor:"rgba(255,160,122,0.5)",
    myth:"켄타우로스 케이론이에요. 반은 사람, 반은 말인 현명한 스승으로 헤라클레스와 아킬레스를 가르쳤어요. 활을 잘 쏘는 것으로 유명해요!",
-   skillName:"황금 화살",skillDesc:"방향을 선택해서 강력한 화살을 직선으로 날려요!",
-   skillFlavorText:"반인반마 사수가 허공을 향해 시위를 당깁니다. 화살은 순수한 황금빛 에너지로 이루어져 모든 장애물을 뚫고 끝없이 뻗어 나가요!",
-   skillIcon:"🏹",skillType:"piercing",starPositions:[[50,45],[30,45],[70,45],[40,65],[60,65]]},
-  {id:"capricorn",  month:"12월",name:"염소자리",  emoji:"♑",color:"#98D8C8",glowColor:"rgba(152,216,200,0.5)",
+   atkSkill:{name:"황금 화살",desc:"별 선택 후 방향 선택! 최강 속도로 관통 발사!",icon:"🏹",type:"piercing",flavorText:"황금 화살이 모든 장애물을 뚫고 최강의 속도로 날아가요!",limit:null},
+   defSkill:{name:"켄타우로스 도약",desc:"내 별 하나를 상대 진영 반대편으로 피신!",icon:"🐴",type:"relocate",flavorText:"켄타우로스가 도약하여 전장 반대편 안전한 곳으로 이동합니다!",limit:null},
+   starPositions:[[50,45],[30,45],[70,45],[40,65],[60,65]]},
+
+  {id:"capricorn",month:"12월",name:"염소자리",emoji:"♑",color:"#98D8C8",glowColor:"rgba(152,216,200,0.5)",
    myth:"판 신이 괴물 티폰을 피해 물고기로 변하려다 반만 변해버렸어요! 물고기 꼬리에 염소 머리를 가진 재미있는 모습이 되었답니다!",
-   skillName:"변신 탈출",skillDesc:"상대방 별 하나를 아무도 모르는 랜덤한 위치로 순간이동시켜요!",
-   skillFlavorText:"바다-염소가 소용돌이치는 푸른 포털 속으로 사라지며 순간이동을 시도합니다. 기존 위치에는 잔상만이 남고 새로운 좌표로 기습적으로 이동해요!",
-   skillIcon:"🐐",skillType:"teleport",starPositions:[[50,45],[35,40],[65,40],[40,65],[60,65]]},
-  {id:"aquarius",   month:"1월", name:"물병자리",  emoji:"♒",color:"#7EC8E3",glowColor:"rgba(126,200,227,0.5)",
+   atkSkill:{name:"변신 탈출",desc:"상대 별 하나를 랜덤 위치로 순간이동!",icon:"🐐",type:"teleport",flavorText:"소용돌이 포털이 상대 별을 엉뚱한 곳으로 날려버립니다!",limit:null},
+   defSkill:{name:"해류 방어",desc:"내 별 전체를 살짝 흩어 안전하게 배치해요!",icon:"🌊",type:"scatter",flavorText:"파도가 별들을 감싸며 더 넓게 안전하게 흩어놓습니다!",limit:null},
+   starPositions:[[50,45],[35,40],[65,40],[40,65],[60,65]]},
+
+  {id:"aquarius",month:"1월",name:"물병자리",emoji:"♒",color:"#7EC8E3",glowColor:"rgba(126,200,227,0.5)",
    myth:"신들에게 물을 날라주던 아름다운 소년 가니메데스예요. 제우스가 독수리로 변해 올림포스로 데려와 신들의 술 따르는 시종이 되었어요!",
-   skillName:"생명의 물",skillDesc:"내 별을 하나 랜덤하게 되살려 가장 안전한 곳에 놓아요!",
-   skillFlavorText:"천상의 물병에서 푸르고 투명한 생명의 물이 쏟아져 나옵니다. 소멸했던 별들의 잔해를 감싸 안으며 따뜻한 빛의 보호막 속에서 다시 소환해요!",
-   skillIcon:"🏺",skillType:"heal",starPositions:[[50,45],[35,50],[65,50],[40,65],[60,65]]},
-  {id:"pisces",     month:"2월", name:"물고기자리",emoji:"♓",color:"#B8A9C9",glowColor:"rgba(184,169,201,0.5)",
+   atkSkill:{name:"생명수 소환",desc:"죽은 내 별 1개 부활! (게임당 2회)",icon:"🏺",type:"heal_once",flavorText:"생명의 물이 소멸한 별을 다시 살려냅니다!",limit:2},
+   defSkill:{name:"물의 방패",desc:"내 별 전체에 3초 쉴드!",icon:"💧",type:"shield",flavorText:"생명의 물이 별들을 감싸며 완벽한 방패가 됩니다!",limit:null},
+   starPositions:[[50,45],[35,50],[65,50],[40,65],[60,65]]},
+
+  {id:"pisces",month:"2월",name:"물고기자리",emoji:"♓",color:"#B8A9C9",glowColor:"rgba(184,169,201,0.5)",
    myth:"사랑의 여신 아프로디테와 아들 에로스가 괴물을 피해 물고기로 변해 도망쳤어요. 서로 잃어버리지 않으려고 꼬리를 묶고 헤엄쳤답니다!",
-   skillName:"아프로디테의 도망",skillDesc:"내 별 하나를 원하는 위치로 순간이동시켜요!",
-   skillFlavorText:"두 마리의 아름다운 물고기가 우주 공간을 헤엄치며 은하수의 소용돌이를 만들어냅니다. 물고기들의 빛의 궤적으로 새로운 전략적 위치로 도달해요!",
-   skillIcon:"🐟",skillType:"relocate",starPositions:[[40,45],[60,45],[35,60],[65,60],[50,72]]},
+   atkSkill:{name:"소용돌이 흩뿌리기",desc:"상대 별 전체를 랜덤하게 흩어버려요!",icon:"🐟",type:"scatter_enemy",flavorText:"은하수 소용돌이가 상대 별들을 사방으로 흩어버립니다!",limit:null},
+   defSkill:{name:"아프로디테의 도망",desc:"내 별 하나를 원하는 안전한 위치로 이동!",icon:"💫",type:"relocate",flavorText:"아프로디테처럼 순식간에 사라져 안전한 곳으로 도달합니다!",limit:null},
+   starPositions:[[40,45],[60,45],[35,60],[65,60],[50,72]]},
 ];
 
 const B=500,R=22,FRIC=0.92,CD=3;
@@ -175,7 +191,7 @@ function getBGM() {
   if (!_bgmAudio) {
     _bgmAudio = new Audio(BGM_SRC);
     _bgmAudio.loop = true;
-    _bgmAudio.volume = 0.45;
+    _bgmAudio.volume = 0.2;
   }
   return _bgmAudio;
 }
@@ -323,7 +339,7 @@ function StarPiece({x,y,r,zodiacId,color,glow,glowing,frozen,shielded,isDragging
 }
 
 // ── SkillCinematic ────────────────────────────────────────────────
-function SkillCinematic({zodiac,flavorText,onClose}){
+function SkillCinematic({zodiac,skillDef,flavorText,onClose}){
   const[phase,setPhase]=useState("in");
   useEffect(()=>{
     const t1=setTimeout(()=>setPhase("hold"),400);
@@ -332,6 +348,7 @@ function SkillCinematic({zodiac,flavorText,onClose}){
     return()=>{clearTimeout(t1);clearTimeout(t2);clearTimeout(t3);};
   },[]);
   const img=SKILL_IMAGES[zodiac.id];
+  const sd=skillDef||{name:"스킬",desc:"",icon:"⚡"};
   return h("div",{
     onClick:()=>{setPhase("out");setTimeout(()=>onClose&&onClose(),300);},
     style:{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",
@@ -345,7 +362,7 @@ function SkillCinematic({zodiac,flavorText,onClose}){
       "--skill-color":zodiac.color,
       animation:phase==="hold"?"glowPulse 0.8s ease infinite":"none"}},
       h("div",{style:{position:"relative",width:"100%",aspectRatio:"16/9",overflow:"hidden",background:"#0a0a1a"}},
-        h("img",{src:img,alt:zodiac.skillName,
+        h("img",{src:img,alt:sd.name,
           style:{width:"100%",height:"100%",objectFit:"cover",
             filter:"saturate(1.3) brightness(0.9)",
             transform:phase==="hold"?"scale(1.05)":"scale(1)",transition:"transform 0.8s ease"},
@@ -364,9 +381,9 @@ function SkillCinematic({zodiac,flavorText,onClose}){
       ),
       h("div",{style:{padding:"16px 20px 20px",background:"linear-gradient(to bottom,rgba(6,13,30,0.98),rgba(10,20,50,0.98))"}},
         h("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:10}},
-          h("span",{style:{fontSize:28}},zodiac.skillIcon),
+          h("span",{style:{fontSize:28}},sd.icon),
           h("div",null,
-            h("div",{style:{fontSize:18,fontWeight:900,color:zodiac.color,lineHeight:1.1}},zodiac.skillName),
+            h("div",{style:{fontSize:18,fontWeight:900,color:zodiac.color,lineHeight:1.1}},sd.name),
             h("div",{style:{fontSize:11,color:"rgba(255,255,255,0.45)",fontWeight:600,letterSpacing:1}},
               `${zodiac.name.toUpperCase()} SPECIAL SKILL`)
           )
@@ -375,7 +392,7 @@ function SkillCinematic({zodiac,flavorText,onClose}){
           borderLeft:`2px solid ${zodiac.color}66`,paddingLeft:12}},flavorText),
         h("div",{style:{padding:"8px 12px",background:`${zodiac.color}18`,
           border:`1px solid ${zodiac.color}44`,borderRadius:8,fontSize:12,color:zodiac.color,fontWeight:700}},
-          `⚡ ${zodiac.skillDesc}`)
+          `⚡ ${sd.desc}`)
       )
     ),
     h("div",{style:{position:"absolute",bottom:24,left:0,right:0,textAlign:"center",
@@ -455,7 +472,10 @@ function App(){
   const[drag,setDrag]=useState(null);
   const[dragPos,setDragPos]=useState(null);
   const[lines,setLines]=useState({1:[],2:[]});
-  const[cd,setCd]=useState({1:0,2:0});
+  // 공격/방어 각각 쿨다운 + 사용횟수
+  const[atkCd,setAtkCd]=useState({1:0,2:0});
+  const[defCd,setDefCd]=useState({1:0,2:0});
+  const[skillUses,setSkillUses]=useState({1:{atk:0,def:0},2:{atk:0,def:0}});
   const[winner,setWinner]=useState(null);
   const[log,setLog]=useState("");
   const[particles,setParticles]=useState([]);
@@ -606,7 +626,8 @@ function App(){
           }
           return prev;
         });
-        setCd(p=>({...p,[turnRef.current]:Math.max(0,p[turnRef.current]-1)}));
+        setAtkCd(p=>({...p,[turnRef.current]:Math.max(0,p[turnRef.current]-1)}));
+        setDefCd(p=>({...p,[turnRef.current]:Math.max(0,p[turnRef.current]-1)}));
         setTurn(t=>t===1?2:1);
         setLog("");
         playSound("launch");
@@ -629,24 +650,23 @@ function App(){
     };
   },[drag,onMove,onUp]);
 
-  function triggerCinematic(zodiac,onComplete){
-    const fx=SKILL_FX[zodiac.skillType]||{};
-    setCinematic({zodiac,flavorText:zodiac.skillFlavorText});
-    playSound(zodiac.skillType==="freeze"?"freeze":"skill");
+  const curPiercingIsAtk=useRef(true);
+
+  function triggerCinematic(skillDef,zodiac,onComplete){
+    const fx=SKILL_FX[skillDef.type]||{};
+    setCinematic({zodiac,skillDef,flavorText:skillDef.flavorText});
+    playSound(skillDef.type==="freeze"?"freeze":"skill");
     if(fx.screenTint){setTint(fx.screenTint);setTimeout(()=>setTint(null),1800);}
     if(fx.shake){setShake(true);setTimeout(()=>setShake(false),500);}
     setTimeout(()=>{setCinematic(null);if(onComplete)onComplete();},2200);
   }
 
-  function applySkillEffect(t,z){
-    const type=z.skillType;
+  function applySkillEffect(t,skillDef,setCdFn){
+    const type=skillDef.type;
     if(type==="shield"){
-      // ✅ 쉴드: 상대가 공격해도 밀려나지 않고 경계 밖으로도 안 나감
       setStars(prev=>prev.map(s=>s.player===t&&s.alive?{...s,shielded:true}:s));
-      setTimeout(()=>{
-        setStars(prev=>prev.map(s=>s.player===t?{...s,shielded:false}:s));
-      },4000); // 4초간 지속
-      setLog(`🛡️ ${z.skillName} 발동! 4초간 무적!`);
+      setTimeout(()=>setStars(prev=>prev.map(s=>s.player===t?{...s,shielded:false}:s)),4000);
+      setLog(`🛡️ ${skillDef.name} 발동! 4초간 무적!`);
       setTurn(tt=>tt===1?2:1);
     }else if(type==="freeze"){
       const enemy=starsRef.current.filter(s=>s.player!==t&&s.alive);
@@ -654,30 +674,36 @@ function App(){
         const tg=enemy[Math.floor(Math.random()*enemy.length)];
         setStars(prev=>prev.map(s=>s.id===tg.id?{...s,frozen:true}:s));
         setTimeout(()=>setStars(prev=>prev.map(s=>s.id===tg.id?{...s,frozen:false}:s)),4000);
-        setLog(`❄️ ${z.skillName} 발동! 상대 별이 얼었어요!`);
+        setLog(`❄️ ${skillDef.name} 발동!`);
       }
       setTurn(tt=>tt===1?2:1);
     }else if(type==="reset"){
       const z1=t===1?p1Z:p2Z,z2=t===1?p2Z:p1Z;
       setStars([...initStars(z1,t),...initStars(z2,t===1?2:1)]);
-      setLines({1:[],2:[]});setLog(`⚖️ ${z.skillName} 발동! 초기화!`);
+      setLines({1:[],2:[]});setLog(`⚖️ ${skillDef.name} 발동! 초기화!`);
       setTurn(tt=>tt===1?2:1);
     }else if(type==="double_power"||type==="power_shot"){
-      setDblPow(p=>({...p,[t]:true}));setLog(`⚡ ${z.skillName} 발동! 다음 공격 2배!`);
+      setDblPow(p=>({...p,[t]:true}));setLog(`⚡ ${skillDef.name} 발동! 다음 공격 3배!`);
       setTurn(tt=>tt===1?2:1);
-    }else if(type==="revive"){
-      setStars(prev=>prev.map(s=>s.player===t&&s.alive?{...s,revive:true}:s));
-      setLog(`🦁 ${z.skillName} 발동! 한 번 부활 가능!`);
-      setTurn(tt=>tt===1?2:1);
-    }else if(type==="respawn"||type==="relocate"||type==="heal"){
+    }else if(type==="revive_once"||type==="respawn_once"||type==="heal_once"){
       const dead=starsRef.current.filter(s=>s.player===t&&!s.alive);
       if(dead.length>0){
         const tg=dead[0];
         setStars(prev=>prev.map(s=>s.id===tg.id?{...s,alive:true,
-          x:t===1?50+Math.random()*100:B-150+Math.random()*100,
-          y:B/2+(Math.random()-0.5)*100,vx:0,vy:0}:s));
-        setLog(`✨ ${z.skillName} 발동! 별이 돌아왔어요!`);
-      }else{setLog("되살릴 별이 없어요!");}
+          x:t===1?60+Math.random()*80:B-140+Math.random()*80,
+          y:B/2+(Math.random()-0.5)*80,vx:0,vy:0}:s));
+        setLog(`✨ ${skillDef.name} 발동! 별이 돌아왔어요!`);
+      }else{setLog("소환할 별이 없어요!");}
+      setTurn(tt=>tt===1?2:1);
+    }else if(type==="relocate"){
+      const mine=starsRef.current.filter(s=>s.player===t&&s.alive);
+      if(mine.length>0){
+        const tg=mine[Math.floor(Math.random()*mine.length)];
+        setStars(prev=>prev.map(s=>s.id===tg.id?{...s,
+          x:t===1?30+Math.random()*100:B-130+Math.random()*100,
+          y:B/2+(Math.random()-0.5)*120,vx:0,vy:0}:s));
+        setLog(`💫 ${skillDef.name} 발동!`);
+      }
       setTurn(tt=>tt===1?2:1);
     }else if(type==="teleport"){
       const enemy=starsRef.current.filter(s=>s.player!==t&&s.alive);
@@ -685,54 +711,92 @@ function App(){
         const tg=enemy[Math.floor(Math.random()*enemy.length)];
         setStars(prev=>prev.map(s=>s.id===tg.id?{...s,
           x:R+Math.random()*(B-R*2),y:R+Math.random()*(B-R*2),vx:0,vy:0}:s));
-        setLog(`🐐 ${z.skillName} 발동! 상대 별이 사라졌어요!`);
+        setLog(`🐐 ${skillDef.name} 발동!`);
       }
       setTurn(tt=>tt===1?2:1);
-    }else if(type==="clone"){
-      setLog(`👥 ${z.skillName} - 상대가 혼란에 빠졌어요!`);
+    }else if(type==="push_all"){
+      const myCenter={x:t===1?B*0.25:B*0.75,y:B/2};
+      setStars(prev=>prev.map(s=>{
+        if(s.player===t||!s.alive)return s;
+        const dx=s.x-myCenter.x,dy=s.y-myCenter.y,len=Math.hypot(dx,dy)||1;
+        return{...s,vx:(dx/len)*18,vy:(dy/len)*18};
+      }));
+      setLog(`🦁 ${skillDef.name} 발동! 충격파!`);
+      setTurn(tt=>tt===1?2:1);
+    }else if(type==="swap"){
+      const mine=starsRef.current.filter(s=>s.player===t&&s.alive);
+      const enemy=starsRef.current.filter(s=>s.player!==t&&s.alive);
+      if(mine.length>0&&enemy.length>0){
+        const m=mine[Math.floor(Math.random()*mine.length)];
+        const e2=enemy[Math.floor(Math.random()*enemy.length)];
+        setStars(prev=>prev.map(s=>{
+          if(s.id===m.id)return{...s,x:e2.x,y:e2.y,vx:0,vy:0};
+          if(s.id===e2.id)return{...s,x:m.x,y:m.y,vx:0,vy:0};
+          return s;
+        }));
+        setLog(`🔀 ${skillDef.name} 발동! 위치 교환!`);
+      }
+      setTurn(tt=>tt===1?2:1);
+    }else if(type==="scatter"){
+      setStars(prev=>prev.map(s=>{
+        if(s.player!==t||!s.alive)return s;
+        return{...s,vx:(Math.random()-0.5)*6,vy:(Math.random()-0.5)*6};
+      }));
+      setLog(`🌊 ${skillDef.name} 발동!`);
+      setTurn(tt=>tt===1?2:1);
+    }else if(type==="scatter_enemy"){
+      setStars(prev=>prev.map(s=>{
+        if(s.player===t||!s.alive)return s;
+        return{...s,vx:(Math.random()-0.5)*14,vy:(Math.random()-0.5)*14};
+      }));
+      setLog(`🐟 ${skillDef.name} 발동! 상대가 흩어졌어요!`);
+      setTurn(tt=>tt===1?2:1);
+    }else if(type==="gravity"){
+      setStars(prev=>prev.map(s=>{
+        if(s.player===t||!s.alive)return s;
+        const dx=B/2-s.x,dy=B/2-s.y,len=Math.hypot(dx,dy)||1;
+        return{...s,vx:(dx/len)*12,vy:(dy/len)*12};
+      }));
+      setLog(`⚖️ ${skillDef.name} 발동! 중력 당기기!`);
+      setTurn(tt=>tt===1?2:1);
+    }else if(type==="cleanse"){
+      setStars(prev=>prev.map(s=>s.player===t?{...s,frozen:false,shielded:false}:s));
+      setLog(`✨ ${skillDef.name} 발동! 상태 이상 해제!`);
       setTurn(tt=>tt===1?2:1);
     }else if(type==="piercing"){
-      setPiercingState({step:"pick_star"});
+      setPiercingState({step:"pick_star",setCdFn});
       setLog("🏹 황금 화살! 쏠 별을 탭해서 선택하세요!");
-      setCd(p=>({...p,[t]:CD}));
+      setCdFn(p=>({...p,[t]:CD}));
       return;
     }
-    setCd(p=>({...p,[t]:CD}));
+    setCdFn(p=>({...p,[t]:CD}));
   }
 
-  function firePiercing(angleDeg){
-    const starId=piercingState?.starId;
-    setPiercingState(null);
-    const t=turnRef.current;
-    if(angleDeg===null){
-      setLog("취소됐어요.");
-      setTurn(tt=>tt===1?2:1);
-      return;
-    }
-    const rad=angleDeg*Math.PI/180;
-    const target=starsRef.current.find(s=>s.id===starId&&s.alive);
-    if(target){
-      setStars(prev=>prev.map(s=>s.id===target.id?
-        {...s,vx:Math.cos(rad)*24,vy:Math.sin(rad)*24,glowing:true}:s));
-      setTimeout(()=>setStars(prev=>prev.map(s=>s.id===target.id?{...s,glowing:false}:s)),1000);
-      setLog("🏹 황금 화살 발사!");
-      playSound("launch");
-    }
-    setTurn(tt=>tt===1?2:1);
-  }
-
-  function doSkill(){
-    if(cd[turn]>0){setLog(`⏳ 스킬 재사용까지 ${cd[turn]}턴 남았어요!`);return;}
-    const z=turn===1?p1Z:p2Z;
+  function doSkill(isAtk){
     const t=turn;
-    triggerCinematic(z,()=>applySkillEffect(t,z));
+    const z=t===1?p1Z:p2Z;
+    const skillDef=isAtk?z.atkSkill:z.defSkill;
+    const setCdFn=isAtk?setAtkCd:setDefCd;
+    const cdVal=isAtk?atkCd[t]:defCd[t];
+    const useKey=isAtk?"atk":"def";
+    if(cdVal>0){setLog(`⏳ ${skillDef.name} — ${cdVal}턴 후 사용 가능`);return;}
+    if(skillDef.limit!==null&&skillUses[t][useKey]>=skillDef.limit){
+      setLog(`❌ ${skillDef.name} — 이미 ${skillDef.limit}회 모두 사용했어요!`);return;
+    }
+    if(skillDef.limit!==null){
+      setSkillUses(prev=>({...prev,[t]:{...prev[t],[useKey]:prev[t][useKey]+1}}));
+    }
+    triggerCinematic(skillDef,z,()=>applySkillEffect(t,skillDef,setCdFn));
   }
+
 
   function startGame(){
     if(!p1Z||!p2Z)return;
     setStars([...initStars(p1Z,1),...initStars(p2Z,2)]);
-    setLines({1:[],2:[]});setTurn(1);setCd({1:0,2:0});setWinner(null);
-    setDblPow({1:false,2:false});
+    setLines({1:[],2:[]});setTurn(1);
+    setAtkCd({1:0,2:0});setDefCd({1:0,2:0});
+    setSkillUses({1:{atk:0,def:0},2:{atk:0,def:0}});
+    setWinner(null);setDblPow({1:false,2:false});
     setLog("🌟 별을 드래그해서 발사하세요!");setPhase("game");
     setTimeout(()=>startBGM(),200);
   }
@@ -798,14 +862,14 @@ function App(){
             h(ZodiacIcon,{zodiacId:sel.id,size:52,selected:true,color:sel.color}),
             h("div",null,
               h("div",{style:{fontSize:15,fontWeight:900,color:sel.color}},`${sel.name}`),
-              h("div",{style:{fontSize:11,color:"rgba(255,255,255,0.5)"}},`${sel.skillIcon} ${sel.skillName}`)
+              h("div",{style:{fontSize:11,color:"rgba(255,255,255,0.5)"}},`⚔️ ${sel.atkSkill?.name}  🛡️ ${sel.defSkill?.name}`)
             )
           ),
           h("div",{style:{fontSize:12,color:"rgba(255,255,255,0.7)",lineHeight:1.6}},sel.myth),
           h("div",{style:{padding:"6px 10px",borderRadius:8,fontSize:11,
             border:`1px solid ${sel.color}`,background:`${sel.color}25`,
             color:"rgba(255,255,255,0.9)"}},
-            `⚡ 특수 스킬: ${sel.skillDesc}`)
+            `⚔️ ${sel.atkSkill?.desc} | 🛡️ ${sel.defSkill?.desc}`)
         ),
 
         step===1
@@ -874,12 +938,12 @@ function App(){
     h(Nebula),h(BgStars,{stars:bgStars}),
     tint&&h("div",{style:{position:"fixed",inset:0,zIndex:50,pointerEvents:"none",
       background:tint,animation:"tintFlash 1.8s ease forwards"}}),
-    cinematic&&h(SkillCinematic,{zodiac:cinematic.zodiac,flavorText:cinematic.flavorText,
+    cinematic&&h(SkillCinematic,{zodiac:cinematic.zodiac,skillDef:cinematic.skillDef,flavorText:cinematic.flavorText,
       onClose:()=>setCinematic(null)}),
     piercingState?.step==="pick_dir"&&h(DirectionPicker,{onSelect:firePiercing,color:curZ?.color||"#FFA07A"}),
 
-    h("div",{style:{position:"relative",zIndex:10,width:"100%",maxWidth:540,
-      display:"flex",flexDirection:"column",gap:8}},
+    h("div",{style:{position:"relative",zIndex:10,width:"100%",maxWidth:700,
+      display:"flex",flexDirection:"column",gap:6}},
 
       // HUD
       h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}},
@@ -902,8 +966,9 @@ function App(){
         h(HudCard,{zodiac:p2Z,liveCount:p2Live,isActive:turn===2,player:2})
       ),
 
-      // 게임판
-      h("div",{style:{width:"100%",aspectRatio:"1",borderRadius:16,overflow:"hidden",
+      // 게임판 + 스킬 (landscape: 가로 배치)
+      h("div",{style:{display:"flex",flexDirection:"row",gap:8,alignItems:"flex-start"}},
+      h("div",{style:{flex:"1 1 auto",minWidth:0,aspectRatio:"1",borderRadius:16,overflow:"hidden",
         border:"2px solid rgba(255,255,255,0.08)",boxShadow:"0 0 40px rgba(0,0,100,0.5)"}},
         h("svg",{ref:svgRef,viewBox:`0 0 ${B} ${B}`,
           style:{width:"100%",height:"100%",display:"block",touchAction:"none"}},
@@ -988,29 +1053,56 @@ function App(){
         )
       ),
 
-      // 하단
-      h("div",{style:{display:"flex",flexDirection:"column",gap:6}},
+      // 스킬 패널 — landscape에서 게임판 옆에 배치
+      h("div",{style:{flex:"0 0 auto",width:"clamp(130px,22vw,180px)",display:"flex",flexDirection:"column",gap:6}},
         log&&h("div",{style:{textAlign:"center",fontSize:12,padding:"7px 12px",
           background:"rgba(255,255,255,0.06)",borderRadius:10,color:"rgba(255,255,255,0.85)",
           border:"1px solid rgba(255,255,255,0.08)"}},log),
-        h("div",{style:{display:"flex",flexDirection:"column",gap:5,
-          background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"10px 14px",
-          border:"1px solid rgba(255,255,255,0.07)"}},
-          h("div",{style:{display:"flex",alignItems:"center",gap:8}},
-            h(ZodiacIcon,{zodiacId:curZ?.id,size:28,selected:true,color:curZ?.color}),
-            h("div",{style:{fontSize:11,color:"rgba(255,255,255,0.55)"}},
-              `${curZ?.skillIcon} ${curZ?.skillName}`)
+        h("div",{style:{background:"rgba(255,255,255,0.04)",borderRadius:12,padding:"8px 10px",
+          border:"1px solid rgba(255,255,255,0.07)",display:"flex",flexDirection:"column",gap:6}},
+          h("div",{style:{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:2}},
+            h(ZodiacIcon,{zodiacId:curZ?.id,size:22,selected:true,color:curZ?.color}),
+            h("div",{style:{fontSize:10,color:"rgba(255,255,255,0.5)",fontWeight:600}},`${curZ?.name} 스킬`)
           ),
-          h("button",{style:{padding:"10px 18px",borderRadius:10,
-            border:`1.5px solid ${cd[turn]===0?curZ?.color:"#444"}`,
-            fontWeight:700,fontSize:13,cursor:"pointer",transition:"all 0.2s",
-            background:cd[turn]===0?`${curZ?.color}30`:"rgba(100,100,100,0.25)",
-            color:cd[turn]===0?curZ?.color:"#666"},
-            onClick:doSkill},
-            cd[turn]>0?`🔒 ${cd[turn]}턴 후 사용 가능`:`⚡ 스킬 사용! (${curZ?.skillName})`),
-          h("div",{style:{fontSize:10,color:"rgba(255,255,255,0.4)",textAlign:"center"}},curZ?.skillDesc)
+          // 공격 스킬 버튼
+          h("div",{style:{display:"flex",flexDirection:"column",gap:2}},
+            h("div",{style:{fontSize:9,color:"rgba(255,100,100,0.8)",fontWeight:700,textAlign:"center",letterSpacing:1}},"⚔️ 공격 스킬"),
+            h("button",{style:{padding:"8px 10px",borderRadius:8,width:"100%",
+              border:`1.5px solid ${atkCd[turn]===0?curZ?.color:"#444"}`,
+              fontWeight:700,fontSize:12,cursor:"pointer",transition:"all 0.2s",
+              background:atkCd[turn]===0?`${curZ?.color}28`:"rgba(80,80,80,0.25)",
+              color:atkCd[turn]===0?curZ?.color:"#555"},
+              onClick:()=>doSkill(true)},
+              atkCd[turn]>0
+                ?`🔒 ${atkCd[turn]}턴`
+                :(curZ?.atkSkill?.limit!==null&&skillUses[turn]?.atk>=(curZ?.atkSkill?.limit||0))
+                  ?`✕ 소진`
+                  :`${curZ?.atkSkill?.icon} ${curZ?.atkSkill?.name}`
+            ),
+            atkCd[turn]===0&&h("div",{style:{fontSize:9,color:"rgba(255,255,255,0.35)",textAlign:"center"}},
+              curZ?.atkSkill?.limit?`(${curZ.atkSkill.limit-( skillUses[turn]?.atk||0)}회 남음) ${curZ?.atkSkill?.desc}`:curZ?.atkSkill?.desc)
+          ),
+          // 방어 스킬 버튼
+          h("div",{style:{display:"flex",flexDirection:"column",gap:2}},
+            h("div",{style:{fontSize:9,color:"rgba(100,200,255,0.8)",fontWeight:700,textAlign:"center",letterSpacing:1}},"🛡️ 방어 스킬"),
+            h("button",{style:{padding:"8px 10px",borderRadius:8,width:"100%",
+              border:`1.5px solid ${defCd[turn]===0?"#87CEEB":"#444"}`,
+              fontWeight:700,fontSize:12,cursor:"pointer",transition:"all 0.2s",
+              background:defCd[turn]===0?"rgba(135,206,235,0.15)":"rgba(80,80,80,0.25)",
+              color:defCd[turn]===0?"#87CEEB":"#555"},
+              onClick:()=>doSkill(false)},
+              defCd[turn]>0
+                ?`🔒 ${defCd[turn]}턴`
+                :(curZ?.defSkill?.limit!==null&&skillUses[turn]?.def>=(curZ?.defSkill?.limit||0))
+                  ?`✕ 소진`
+                  :`${curZ?.defSkill?.icon} ${curZ?.defSkill?.name}`
+            ),
+            defCd[turn]===0&&h("div",{style:{fontSize:9,color:"rgba(255,255,255,0.35)",textAlign:"center"}},
+              curZ?.defSkill?.limit?`(${curZ.defSkill.limit-(skillUses[turn]?.def||0)}회 남음) ${curZ?.defSkill?.desc}`:curZ?.defSkill?.desc)
+          )
         )
-      )
+      ) // skill panel
+      ) // landscape wrapper
     )
   );
 }
