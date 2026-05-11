@@ -715,13 +715,19 @@ function App(){
       }
       setTurn(tt=>tt===1?2:1);
     }else if(type==="push_all"){
-      const myCenter={x:t===1?B*0.25:B*0.75,y:B/2};
+      // 가장 가까운 적 별 2개만 강하게 밀기 (너무 강하지 않게 조절)
+      const myCenter={x:t===1?B*0.3:B*0.7,y:B/2};
+      const enemies=starsRef.current
+        .filter(s=>s.player!==t&&s.alive)
+        .sort((a,b)=>Math.hypot(a.x-myCenter.x,a.y-myCenter.y)-Math.hypot(b.x-myCenter.x,b.y-myCenter.y))
+        .slice(0,2);
+      const targetIds=new Set(enemies.map(s=>s.id));
       setStars(prev=>prev.map(s=>{
-        if(s.player===t||!s.alive)return s;
+        if(!targetIds.has(s.id))return s;
         const dx=s.x-myCenter.x,dy=s.y-myCenter.y,len=Math.hypot(dx,dy)||1;
-        return{...s,vx:(dx/len)*18,vy:(dy/len)*18};
+        return{...s,vx:(dx/len)*14,vy:(dy/len)*14};
       }));
-      setLog(`🦁 ${skillDef.name} 발동! 충격파!`);
+      setLog(`🦁 ${skillDef.name} 발동! 가까운 별 2개 날려버렸어요!`);
       setTurn(tt=>tt===1?2:1);
     }else if(type==="swap"){
       const mine=starsRef.current.filter(s=>s.player===t&&s.alive);
@@ -787,6 +793,30 @@ function App(){
       setSkillUses(prev=>({...prev,[t]:{...prev[t],[useKey]:prev[t][useKey]+1}}));
     }
     triggerCinematic(skillDef,z,()=>applySkillEffect(t,skillDef,setCdFn));
+  }
+
+  // 황금 화살: 별 선택 후 방향 선택 → 발사
+  function firePiercing(angleDeg){
+    const starId=piercingState?.starId;
+    const savedCdFn=piercingState?.setCdFn;
+    setPiercingState(null);
+    const t=turnRef.current;
+    if(angleDeg===null){
+      setLog("취소됐어요.");
+      setTurn(tt=>tt===1?2:1);
+      return;
+    }
+    const rad=angleDeg*Math.PI/180;
+    const target=starsRef.current.find(s=>s.id===starId&&s.alive);
+    if(target){
+      // 사수자리 황금화살: 최대 속도 30으로 강화
+      setStars(prev=>prev.map(s=>s.id===target.id?
+        {...s,vx:Math.cos(rad)*30,vy:Math.sin(rad)*30,glowing:true}:s));
+      setTimeout(()=>setStars(prev=>prev.map(s=>s.id===target.id?{...s,glowing:false}:s)),1000);
+      setLog("🏹 황금 화살 발사!");
+      playSound("launch");
+    }
+    setTurn(tt=>tt===1?2:1);
   }
 
 
@@ -992,18 +1022,25 @@ function App(){
           ...getLiveLines(p2Stars).map((l,i)=>h("line",{key:`ll2${i}`,x1:l.x1,y1:l.y1,x2:l.x2,y2:l.y2,
             stroke:p2Z?.color,strokeWidth:1,opacity:0.2})),
 
-          // 드래그 가이드선 (기존 유지)
-          drag&&dragPos&&(()=>{
-            const star=stars.find(s=>s.id===drag.id);if(!star)return null;
+          // 드래그 가이드선
+          ...(()=>{
+            if(!drag||!dragPos)return[];
+            const star=stars.find(s=>s.id===drag.id);
+            if(!star)return[];
             const dx=star.x-dragPos.x,dy=star.y-dragPos.y,len=Math.hypot(dx,dy);
-            return h("g",null,
-              h("line",{x1:star.x,y1:star.y,x2:dragPos.x,y2:dragPos.y,
-                stroke:"rgba(255,255,255,0.4)",strokeWidth:2,strokeDasharray:"6,4"}),
-              h("circle",{cx:dragPos.x,cy:dragPos.y,r:5,fill:"rgba(255,255,255,0.3)"}),
-              len>10&&h("line",{x1:star.x,y1:star.y,
-                x2:star.x+dx/len*45,y2:star.y+dy/len*45,
-                stroke:"rgba(255,220,100,0.9)",strokeWidth:3})
-            );
+            const elems=[
+              h("line",{key:"gl1",x1:star.x,y1:star.y,x2:dragPos.x,y2:dragPos.y,
+                stroke:"rgba(255,255,255,0.45)",strokeWidth:2,strokeDasharray:"6,4"}),
+              h("circle",{key:"gc1",cx:dragPos.x,cy:dragPos.y,r:6,fill:"rgba(255,255,255,0.35)"}),
+            ];
+            if(len>10){
+              elems.push(h("line",{key:"gl2",x1:star.x,y1:star.y,
+                x2:star.x+dx/len*48,y2:star.y+dy/len*48,
+                stroke:"rgba(255,220,80,0.95)",strokeWidth:3.5}));
+              elems.push(h("circle",{key:"gc2",cx:star.x+dx/len*48,cy:star.y+dy/len*48,
+                r:4,fill:"rgba(255,220,80,0.8)"}));
+            }
+            return elems;
           })(),
 
           // 황금화살 별 선택 모드 안내
