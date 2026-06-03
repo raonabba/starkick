@@ -352,8 +352,11 @@ const ZODIAC_ICONS = {
 
 </script>
 <script>
-const {useState,useRef,useEffect,useCallback} = React;
-const {createRoot} = ReactDOM;
+const useState=React.useState.bind(React);
+const useRef=React.useRef.bind(React);
+const useEffect=React.useEffect.bind(React);
+const useCallback=React.useCallback.bind(React);
+const createRoot=ReactDOM.createRoot.bind(ReactDOM);
 const h=React.createElement;
 
 // ── 스킬 FX ──────────────────────────────────────────────────────
