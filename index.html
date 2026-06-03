@@ -352,11 +352,7 @@ const ZODIAC_ICONS = {
 
 </script>
 <script>
-const useState=React.useState.bind(React);
-const useRef=React.useRef.bind(React);
-const useEffect=React.useEffect.bind(React);
-const useCallback=React.useCallback.bind(React);
-const createRoot=ReactDOM.createRoot.bind(ReactDOM);
+const createRoot=ReactDOM.createRoot;
 const h=React.createElement;
 
 // ── 스킬 FX ──────────────────────────────────────────────────────
@@ -686,8 +682,8 @@ function StarPiece({x,y,r,zodiacId,color,glow,glowing,frozen,shielded,isDragging
 
 // ── SkillCinematic ────────────────────────────────────────────────
 function SkillCinematic({zodiac,skillDef,flavorText,onClose}){
-  const[phase,setPhase]=useState("in");
-  useEffect(()=>{
+  const[phase,setPhase]=React.useState("in");
+  React.useEffect(()=>{
     const t1=setTimeout(()=>setPhase("hold"),400);
     const t2=setTimeout(()=>setPhase("out"),1800);
     const t3=setTimeout(()=>onClose&&onClose(),2300);
@@ -788,7 +784,7 @@ function DirectionPicker({onSelect,color}){
 
 // ── BGM 선택 컴포넌트 ─────────────────────────────────────────────
 function BgmSelector({bgmOn,setBgmOn,bgmTrack,setBgmTrack}){
-  const[open,setOpen]=useState(false);
+  const[open,setOpen]=React.useState(false);
   const tracks=BGM_LIST.map(t=>t.name);
   function handleTrack(i){
     setBgmTrack(i);
@@ -864,57 +860,57 @@ function HudCard({zodiac,liveCount,isActive,player}){
 
 // ── 메인 앱 ─────────────────────────────────────────────────────
 function App(){
-  const[phase,setPhase]=useState("select");
-  const[p1Z,setP1Z]=useState(null);
-  const[p2Z,setP2Z]=useState(null);
-  const[step,setStep]=useState(1);
-  const[stars,setStars]=useState([]);
-  const[turn,setTurn]=useState(1);
-  const[drag,setDrag]=useState(null);
-  const[dragPos,setDragPos]=useState(null);
-  const[lines,setLines]=useState({1:[],2:[]});
+  const[phase,setPhase]=React.useState("select");
+  const[p1Z,setP1Z]=React.useState(null);
+  const[p2Z,setP2Z]=React.useState(null);
+  const[step,setStep]=React.useState(1);
+  const[stars,setStars]=React.useState([]);
+  const[turn,setTurn]=React.useState(1);
+  const[drag,setDrag]=React.useState(null);
+  const[dragPos,setDragPos]=React.useState(null);
+  const[lines,setLines]=React.useState({1:[],2:[]});
   // 공격/방어 각각 쿨다운 + 사용횟수
-  const[atkCd,setAtkCd]=useState({1:0,2:0});
-  const[defCd,setDefCd]=useState({1:0,2:0});
-  const[skillUses,setSkillUses]=useState({1:{atk:0,def:0},2:{atk:0,def:0}});
-  const[winner,setWinner]=useState(null);
-  const[log,setLog]=useState("");
-  const[particles,setParticles]=useState([]);
-  const[dblPow,setDblPow]=useState({1:false,2:false});
-  const[cinematic,setCinematic]=useState(null);
-  const[shake,setShake]=useState(false);
-  const[tint,setTint]=useState(null);
+  const[atkCd,setAtkCd]=React.useState({1:0,2:0});
+  const[defCd,setDefCd]=React.useState({1:0,2:0});
+  const[skillUses,setSkillUses]=React.useState({1:{atk:0,def:0},2:{atk:0,def:0}});
+  const[winner,setWinner]=React.useState(null);
+  const[log,setLog]=React.useState("");
+  const[particles,setParticles]=React.useState([]);
+  const[dblPow,setDblPow]=React.useState({1:false,2:false});
+  const[cinematic,setCinematic]=React.useState(null);
+  const[shake,setShake]=React.useState(false);
+  const[tint,setTint]=React.useState(null);
   // 황금화살 3단계: null → {step:"pick_star"} → {step:"pick_dir", starId}
-  const[piercingState,setPiercingState]=useState(null);
-  const[bgmOn,setBgmOn]=useState(true);
+  const[piercingState,setPiercingState]=React.useState(null);
+  const[bgmOn,setBgmOn]=React.useState(true);
   // 조건부 방어 스킬 상태 {1: skillType|null, 2: skillType|null}
-  const[activeDefSkill,setActiveDefSkill]=useState({1:null,2:null});
+  const[activeDefSkill,setActiveDefSkill]=React.useState({1:null,2:null});
   // 더블 턴 (황소자리 공격)
-  const[doubleTurn,setDoubleTurn]=useState({1:false,2:false});
+  const[doubleTurn,setDoubleTurn]=React.useState({1:false,2:false});
   // 추가 발사 기회 (양자리 공격)
-  const[bonusShot,setBonusShot]=useState({1:false,2:false});
+  const[bonusShot,setBonusShot]=React.useState({1:false,2:false});
   // 처녀자리 턴 카운트
-  const[virgoTurnCount,setVirgoTurnCount]=useState({1:0,2:0});
+  const[virgoTurnCount,setVirgoTurnCount]=React.useState({1:0,2:0});
   // 저격 대상 선택 모드
-  const[snipeState,setSnipeState]=useState(null); // {player, setCdFn}
+  const[snipeState,setSnipeState]=React.useState(null); // {player, setCdFn}
   // 커플링 데이터 {player: hitStarId}
-  const[couplingHit,setCouplingHit]=useState({1:null,2:null});
-  const[bgmTrack,setBgmTrack]=useState(0);
-  const svgRef=useRef(null);
-  const starsRef=useRef(stars);
+  const[couplingHit,setCouplingHit]=React.useState({1:null,2:null});
+  const[bgmTrack,setBgmTrack]=React.useState(0);
+  const svgRef=React.useRef(null);
+  const starsRef=React.useRef(stars);
   starsRef.current=stars;
-  const turnRef=useRef(turn);
+  const turnRef=React.useRef(turn);
   turnRef.current=turn;
-  const activeDefSkillRef=useRef(activeDefSkill);
+  const activeDefSkillRef=React.useRef(activeDefSkill);
   activeDefSkillRef.current=activeDefSkill;
-  const pendingLog=useRef("");
+  const pendingLog=React.useRef("");
 
-  const bgStars=useRef(Array.from({length:80},()=>({
+  const bgStars=React.useRef(Array.from({length:80},()=>({
     x:Math.random()*100,y:Math.random()*100,
     r:Math.random()*1.2+0.3,delay:Math.random()*3,dur:2+Math.random()*2
   }))).current;
 
-  useEffect(()=>{
+  React.useEffect(()=>{
     const s=document.createElement("style");
     s.textContent=`
       @keyframes cinematicIn{from{opacity:0;transform:scale(0.85) translateY(30px)}to{opacity:1;transform:scale(1) translateY(0)}}
@@ -931,7 +927,7 @@ function App(){
   },[]);
 
   // ── 물리 ──────────────────────────────────────────────────────
-  const tick=useCallback(()=>{
+  const tick=React.useCallback(()=>{
     setStars(prev=>{
       const next=prev.map(s=>({...s}));
       const pendingDefReset=[];
@@ -1042,7 +1038,7 @@ function App(){
 
   // tick에서 발생한 pendingDefReset 처리 (조건부 방어 스킬 해제)
   // pendingLog도 함께 처리
-  useEffect(()=>{
+  React.useEffect(()=>{
     if(phase!=="game")return;
     const id=setInterval(()=>{
       if(pendingLog.current){
@@ -1053,14 +1049,14 @@ function App(){
     return()=>clearInterval(id);
   },[phase]);
 
-  useEffect(()=>{
+  React.useEffect(()=>{
     if(phase!=="game")return;
     const id=setInterval(tick,16);
     return()=>clearInterval(id);
   },[phase,tick]);
 
   // 턴 전환 시 조건부 방어 스킬 처리
-  useEffect(()=>{
+  React.useEffect(()=>{
     if(phase!=="game")return;
     // 상대 턴이 됐을 때 위장 스킬 발동 (cond_disguise)
     // turn이 바뀌면 이전 플레이어의 위장 스킬 해제 + 현 플레이어 위장 적용
@@ -1123,14 +1119,14 @@ function App(){
     setDragPos(getSVGPos(raw));
   }
 
-  const onMove=useCallback((e)=>{
+  const onMove=React.useCallback((e)=>{
     if(!drag)return;
     if(e.cancelable)e.preventDefault();
     const raw=e.touches?e.touches[0]:e;
     setDragPos(getSVGPos(raw));
   },[drag]);
 
-  const onUp=useCallback((e)=>{
+  const onUp=React.useCallback((e)=>{
     if(!drag)return;
     const raw=e.changedTouches?e.changedTouches[0]:e;
     const end=getSVGPos(raw);
@@ -1214,7 +1210,7 @@ function App(){
     setDrag(null);setDragPos(null);
   },[drag,dblPow,doubleTurn,p1Z,p2Z]);
 
-  useEffect(()=>{
+  React.useEffect(()=>{
     const noScroll=(e)=>{if(drag&&e.cancelable)e.preventDefault();};
     window.addEventListener("touchmove",noScroll,{passive:false});
     window.addEventListener("touchend",onUp,{passive:true});
@@ -1228,7 +1224,7 @@ function App(){
     };
   },[drag,onMove,onUp]);
 
-  const curPiercingIsAtk=useRef(true);
+  const curPiercingIsAtk=React.useRef(true);
 
   function triggerCinematic(skillDef,zodiac,onComplete){
     const fx=SKILL_FX[skillDef.type]||{};
