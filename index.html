@@ -322,39 +322,45 @@ function ZodiacIcon({zodiacId,size=40,selected,color}){
 }
 
 // ── 게임판 별 (원형 이미지) ───────────────────────────────────────────
-function StarPiece({x,y,r,zodiacId,color,glow,glowing,frozen,shielded,isDragging}){
+function StarPiece({x,y,r,zodiacId,color,glow,glowing,frozen,shielded,isDragging,player}){
   const size=r*2;
+  // 플레이어1: 실선 테두리 + 하단 빨간 삼각형 마커
+  // 플레이어2: 점선 테두리 + 하단 파란 삼각형 마커
+  const isP1=player===1;
+  const markerColor=isP1?"#FF6B6B":"#4ECDC4";
+  const strokeDash=isP1?"none":"5,3";
   return h("g",null,
-    // 글로우 링
     glowing&&h("circle",{cx:x,cy:y,r:r+10,fill:glow,opacity:0.5},
       h("animate",{attributeName:"r",values:`${r+8};${r+15};${r+8}`,dur:"0.9s",repeatCount:"indefinite"}),
       h("animate",{attributeName:"opacity",values:"0.5;0.15;0.5",dur:"0.9s",repeatCount:"indefinite"})
     ),
-    // 방어 쉴드
     shielded&&h("circle",{cx:x,cy:y,r:r+8,fill:"none",stroke:"#87CEEB",strokeWidth:3,opacity:0.85},
       h("animate",{attributeName:"r",values:`${r+6};${r+12};${r+6}`,dur:"0.7s",repeatCount:"indefinite"}),
       h("animate",{attributeName:"opacity",values:"0.85;0.3;0.85",dur:"0.7s",repeatCount:"indefinite"})
     ),
-    // 얼음
     frozen&&h("circle",{cx:x,cy:y,r:r+5,fill:"rgba(100,200,255,0.25)",stroke:"rgba(100,200,255,0.8)",strokeWidth:2}),
-    // 원형 클리핑 마스크
     h("defs",null,
       h("clipPath",{id:`clip_${zodiacId}_${Math.round(x)}_${Math.round(y)}`},
         h("circle",{cx:x,cy:y,r:r})
       )
     ),
-    // 배경 원
-    h("circle",{cx:x,cy:y,r:r,fill:"#1a1a2e",stroke:color,strokeWidth:isDragging?3:2}),
-    // 이미지
+    h("circle",{cx:x,cy:y,r:r,fill:"#1a1a2e",stroke:markerColor,strokeWidth:isDragging?3:2,
+      strokeDasharray:strokeDash}),
     h("image",{
       href:ZODIAC_ICONS[zodiacId],
       x:x-r,y:y-r,width:size,height:size,
       clipPath:`url(#clip_${zodiacId}_${Math.round(x)}_${Math.round(y)})`,
       opacity:frozen?0.55:1,
-      style:{filter:isDragging?`drop-shadow(0 0 8px ${color})`:`drop-shadow(0 0 4px ${color})`}
+      style:{filter:isDragging?`drop-shadow(0 0 8px ${markerColor})`:`drop-shadow(0 0 4px ${markerColor})`}
     }),
-    // 테두리 원 (위에 덧그리기)
-    h("circle",{cx:x,cy:y,r:r,fill:"none",stroke:color,strokeWidth:isDragging?3:1.5,opacity:0.8})
+    h("circle",{cx:x,cy:y,r:r,fill:"none",stroke:markerColor,strokeWidth:isDragging?3:1.5,
+      strokeDasharray:strokeDash,opacity:0.9}),
+    // 플레이어 마커 (우상단 작은 원)
+    h("circle",{cx:x+r*0.65,cy:y-r*0.65,r:r*0.28,
+      fill:markerColor,stroke:"#060d1e",strokeWidth:1.2,opacity:0.95}),
+    h("text",{x:x+r*0.65,y:y-r*0.65+3.5,textAnchor:"middle",fontSize:r*0.28,
+      fontWeight:"900",fill:"#fff",style:{pointerEvents:"none",userSelect:"none",fontFamily:"system-ui"}},
+      isP1?"1":"2")
   );
 }
 
@@ -1229,7 +1235,21 @@ function App(){
             h("div",{style:{fontSize:14,fontWeight:800,color:curZ?.color}},
               `${curZ?.emoji} ${curZ?.name}`)
           ),
-          h(BgmSelector,{bgmOn,setBgmOn,bgmTrack,setBgmTrack})
+          h("div",{style:{display:"flex",alignItems:"center",gap:5}},
+            h(BgmSelector,{bgmOn,setBgmOn,bgmTrack,setBgmTrack}),
+            h("button",{
+              onClick:()=>{
+                if(window.confirm("처음 선택 화면으로 돌아갈까요?")){
+                  stopBGM&&stopBGM();
+                  setPhase("select");setStep(1);setP1Z(null);setP2Z(null);setStars([]);
+                  setWinner(null);setTurn(1);setLog("🌟 별을 드래그해서 발사하세요!");
+                }
+              },
+              style:{padding:"4px 8px",borderRadius:8,border:"1px solid rgba(255,255,255,0.2)",
+                background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.7)",
+                fontSize:11,cursor:"pointer",fontWeight:600,lineHeight:1}},
+              "🏠 처음")
+          )
         ),
         h(HudCard,{zodiac:p2Z,liveCount:p2Live,isActive:turn===2,player:2})
       ),
@@ -1342,7 +1362,8 @@ function App(){
                 color:isSelected?"#FFD700":z?.color||"#fff",
                 glow:z?.glowColor,
                 glowing:isDrag||star.glowing||isSelected,
-                frozen:star.frozen,shielded:star.shielded,isDragging:isDrag}),
+                frozen:star.frozen,shielded:star.shielded,isDragging:isDrag,
+                player:star.player}),
               // 소환별 표시
               star.summon&&h("circle",{cx:star.x,cy:star.y,r:R+6,
                 fill:"none",stroke:"#90EE90",strokeWidth:1.5,opacity:0.7},
