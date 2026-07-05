@@ -322,11 +322,13 @@ function ZodiacIcon({zodiacId,size=40,selected,color}){
 }
 
 // ── 게임판 별 (원형 이미지) ───────────────────────────────────────────
-function StarPiece({x,y,r,zodiacId,color,glow,glowing,frozen,shielded,isDragging,player}){
+function StarPiece({x,y,r,zodiacId,color,glow,glowing,frozen,shielded,isDragging,player,disguised}){
   const size=r*2;
   // 플레이어1: 실선 테두리 + 하단 빨간 삼각형 마커
   // 플레이어2: 점선 테두리 + 하단 파란 삼각형 마커
-  const isP1=player===1;
+  // 위장 중이면 상대 플레이어 외형으로 표시
+  const effectivePlayer=disguised?(player===1?2:1):player;
+  const isP1=effectivePlayer===1;
   const markerColor=isP1?"#FF6B6B":"#4ECDC4";
   const strokeDash=isP1?"none":"5,3";
   return h("g",null,
@@ -355,10 +357,10 @@ function StarPiece({x,y,r,zodiacId,color,glow,glowing,frozen,shielded,isDragging
     }),
     h("circle",{cx:x,cy:y,r:r,fill:"none",stroke:markerColor,strokeWidth:isDragging?3:1.5,
       strokeDasharray:strokeDash,opacity:0.9}),
-    // 플레이어 마커 (우상단 작은 원)
-    h("circle",{cx:x+r*0.65,cy:y-r*0.65,r:r*0.28,
+    // 플레이어 마커 (우상단 작은 원) - 위장 중엔 숨김
+    !disguised&&h("circle",{cx:x+r*0.65,cy:y-r*0.65,r:r*0.28,
       fill:markerColor,stroke:"#060d1e",strokeWidth:1.2,opacity:0.95}),
-    h("text",{x:x+r*0.65,y:y-r*0.65+3.5,textAnchor:"middle",fontSize:r*0.28,
+    !disguised&&h("text",{x:x+r*0.65,y:y-r*0.65+3.5,textAnchor:"middle",fontSize:r*0.28,
       fontWeight:"900",fill:"#fff",style:{pointerEvents:"none",userSelect:"none",fontFamily:"system-ui"}},
       isP1?"1":"2")
   );
@@ -830,11 +832,13 @@ function App(){
 
   useEffect(()=>{
     const noScroll=(e)=>{if(drag&&e.cancelable)e.preventDefault();};
+    window.addEventListener("touchmove",onMove,{passive:false});
     window.addEventListener("touchmove",noScroll,{passive:false});
     window.addEventListener("touchend",onUp,{passive:true});
     window.addEventListener("mousemove",onMove);
     window.addEventListener("mouseup",onUp);
     return()=>{
+      window.removeEventListener("touchmove",onMove);
       window.removeEventListener("touchmove",noScroll);
       window.removeEventListener("touchend",onUp);
       window.removeEventListener("mousemove",onMove);
@@ -1021,19 +1025,23 @@ function App(){
     setTurn(tt=>tt===1?2:1);
   }
 
-  // cond_disguise: 턴 바뀔 때 수비 플레이어 별 하나를 위장
+  // cond_disguise: 턴 바뀔 때 수비 플레이어 별 하나를 위장 (이미 위장된 별이 있으면 유지)
   useEffect(()=>{
     if(phase!=="game")return;
     const opp=turn===1?2:1;
     const ads=activeDefSkillRef.current;
     if(ads[opp]==="cond_disguise"){
-      const mine=starsRef.current.filter(s=>s.player===opp&&s.alive&&!s.disguised);
-      if(mine.length>0){
-        const tg=mine[Math.floor(Math.random()*mine.length)];
-        setStars(prev=>prev.map(s=>s.id===tg.id?{...s,disguised:true}:s));
+      const alreadyDisguised=starsRef.current.filter(s=>s.player===opp&&s.alive&&s.disguised);
+      if(alreadyDisguised.length===0){
+        const mine=starsRef.current.filter(s=>s.player===opp&&s.alive&&!s.disguised);
+        if(mine.length>0){
+          const tg=mine[Math.floor(Math.random()*mine.length)];
+          setStars(prev=>prev.map(s=>s.id===tg.id?{...s,disguised:true}:s));
+        }
       }
+      // 이미 위장 중이면 유지 (새로 바꾸지 않음)
     }else{
-      // 위장 해제
+      // 위장 스킬 비활성화 시에만 해제
       setStars(prev=>prev.map(s=>s.player===opp&&s.disguised?{...s,disguised:false}:s));
     }
   },[turn,phase]);
@@ -1259,7 +1267,7 @@ function App(){
       h("div",{style:{flex:"1 1 auto",minWidth:0,aspectRatio:"1",borderRadius:16,overflow:"hidden",
         border:"2px solid rgba(255,255,255,0.08)",boxShadow:"0 0 40px rgba(0,0,100,0.5)"}},
         h("svg",{ref:svgRef,viewBox:`0 0 ${B} ${B}`,
-          style:{width:"100%",height:"100%",display:"block",touchAction:"none"}},
+          style:{width:"100%",height:"100%",display:"block",touchAction:"none",overflow:"visible"}},
           h("defs",null,
             h("radialGradient",{id:"bg2",cx:"50%",cy:"50%",r:"70%"},
               h("stop",{offset:"0%",stopColor:"#0d1b3e"}),
@@ -1339,6 +1347,9 @@ function App(){
               onMouseDown:e=>onStarDown(e,star),
               onTouchStart:e=>{e.preventDefault();e.stopPropagation();onStarDown(e,star);},
               style:{cursor:(star.player===turn||isPickable||isSnipeable)?"pointer":"default"}},
+              h("circle",{cx:star.x,cy:star.y,r:R+12,fill:"transparent",pointerEvents:"all",
+                onMouseDown:e=>onStarDown(e,star),
+                onTouchStart:e=>{e.preventDefault();e.stopPropagation();onStarDown(e,star);}}),
               // 황금 화살 선택 가능한 별: 회전 점선 링
               isPickable&&h("circle",{cx:star.x,cy:star.y,r:R+14,
                 fill:"none",stroke:"#FFD700",strokeWidth:2.5,opacity:0.85,strokeDasharray:"6,4"},
@@ -1363,7 +1374,7 @@ function App(){
                 glow:z?.glowColor,
                 glowing:isDrag||star.glowing||isSelected,
                 frozen:star.frozen,shielded:star.shielded,isDragging:isDrag,
-                player:star.player}),
+                player:star.player,disguised:star.disguised}),
               // 소환별 표시
               star.summon&&h("circle",{cx:star.x,cy:star.y,r:R+6,
                 fill:"none",stroke:"#90EE90",strokeWidth:1.5,opacity:0.7},
