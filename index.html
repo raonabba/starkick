@@ -13,6 +13,11 @@
       -webkit-touch-callout:none;touch-action:none;
       overscroll-behavior:none;}
     #root{height:100%}
+    @keyframes diceSpin{
+      0%{transform:rotate(-4deg) scale(1.04);}
+      50%{transform:rotate(4deg) scale(0.96);}
+      100%{transform:rotate(-4deg) scale(1.04);}
+    }
   </style>
   <!-- React UMD (importmap 불필요) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
@@ -548,6 +553,10 @@ function HudCard({zodiac,liveCount,isActive,player}){
 // ── 메인 앱 ─────────────────────────────────────────────────────
 function App(){
   const[phase,setPhase]=useState("main");
+  const[diceRolls,setDiceRolls]=useState({1:0,2:0}); // 각 플레이어 굴린 횟수
+  const[diceResult,setDiceResult]=useState({1:null,2:null}); // 현재 주사위 결과
+  const[rolling,setRolling]=useState(false); // 애니메이션 중
+  const[slotIdx,setSlotIdx]=useState(0); // 슬롯 애니메이션용 인덱스
   const[p1Z,setP1Z]=useState(null);
   const[p2Z,setP2Z]=useState(null);
   const[step,setStep]=useState(1);
@@ -1105,119 +1114,145 @@ function App(){
 
   // ── 선택 화면 ──────────────────────────────────────────────────
   if(phase==="select"){
-    const cur=step,sel=cur===1?p1Z:p2Z;
+    const cur=step;
+    const blocked=cur===2&&p1Z;
+    const rolls=diceRolls[cur];
+    const result=diceResult[cur];
+    const canReroll=rolls>0&&rolls<3;
+    const isP1=cur===1;
+    const accentColor=isP1?"#FF6B6B":"#4ECDC4";
+
+    function rollDice(){
+      if(rolling)return;
+      setRolling(true);
+      // 슬롯 애니메이션: 빠르게 인덱스 순환
+      let count=0;
+      const total=22;
+      const iv=setInterval(()=>{
+        setSlotIdx(Math.floor(Math.random()*12));
+        count++;
+        if(count>=total){
+          clearInterval(iv);
+          // 최종 결과 결정 (P2는 P1과 겹치면 재추첨)
+          let idx;
+          do{ idx=Math.floor(Math.random()*12); }
+          while(cur===2&&p1Z&&ZODIAC[idx].id===p1Z.id);
+          const picked=ZODIAC[idx];
+          setSlotIdx(idx);
+          if(cur===1) setP1Z(picked); else setP2Z(picked);
+          setDiceResult(p=>({...p,[cur]:picked}));
+          setDiceRolls(p=>({...p,[cur]:p[cur]+1}));
+          setRolling(false);
+        }
+      },60);
+    }
+
+    function confirmAndNext(){
+      if(cur===1){ setStep(2);setDiceRolls(p=>({...p,2:0}));setDiceResult(p=>({...p,2:null})); }
+      else{ startGame(); }
+    }
+
     const sw=window.innerWidth,sh=window.innerHeight;
-    // 세로/가로 방향 감지
     const isPortrait=sh>sw;
-    // 화면 짧은 쪽 기준 크기 결정 (iPad vs iPhone)
-    const minDim=Math.min(sw,sh);
-    const isTablet=minDim>=600;
-    // 방향별 파라미터
-    const cols=isPortrait?(isTablet?4:3):6;
-    const gridRows=isPortrait?4:2; // 12개 / cols
-    // 사용 가능한 높이에서 비-그리드 요소 높이를 빼고 남은 공간으로 아이콘 크기 결정
-    const nonGridH=isPortrait?(isTablet?280:220):(isTablet?200:170);
-    const selInfoH=sel?(isPortrait?(isTablet?90:70):(isTablet?70:54)):0;
-    const availH=sh-nonGridH-selInfoH;
-    const cardH=Math.floor(availH/gridRows);
-    const iconSz=Math.max(Math.min(Math.floor(cardH*0.52),isTablet?56:38),18);
-    const selIconSz=Math.max(iconSz-4,18);
-    const gap=isPortrait?(isTablet?8:5):(isTablet?6:4);
-    const cardPad=isPortrait?(isTablet?"8px 4px 6px":"5px 2px 4px"):(isTablet?"6px 4px 5px":"3px 2px 3px");
-    const nameFs=Math.max(Math.min(Math.floor(iconSz*0.28),11),7);
-    const monthFs=Math.max(nameFs-1,6);
-    const titleFs=isPortrait?(isTablet?32:20):(isTablet?24:16);
-    const subtitleFs=isPortrait?(isTablet?12:10):(isTablet?11:9);
-    const badgeFs=isPortrait?(isTablet?13:11):(isTablet?12:10);
-    const btnPad=isPortrait?(isTablet?"11px 28px":"8px 18px"):(isTablet?"9px 22px":"7px 14px");
-    const btnFs=isPortrait?(isTablet?14:12):(isTablet?13:11);
-    const outerGap=isPortrait?(isTablet?12:6):(isTablet?8:4);
-    const outerPad=isPortrait?(isTablet?12:8):(isTablet?8:6);
-    const selRootSt={...rootSt,height:"100vh",overflow:"hidden",alignItems:"flex-start"};
-    return h("div",{style:selRootSt},
+    const isTablet=Math.min(sw,sh)>=600;
+    const diceSize=isPortrait?(isTablet?180:140):(isTablet?160:120);
+    const iconSize=isPortrait?(isTablet?100:80):(isTablet?90:70);
+
+    // 슬롯에 보여줄 별자리 (굴리는 중이면 slotIdx, 아니면 result)
+    const displayZ=rolling?ZODIAC[slotIdx]:(result||null);
+
+    return h("div",{style:{...rootSt,height:"100vh",overflow:"hidden"}},
       h(Nebula),h(BgStars,{stars:bgStars}),
-      h("div",{style:{position:"relative",zIndex:10,width:"100%",maxWidth:isPortrait?520:900,
+      h("div",{style:{position:"relative",zIndex:10,width:"100%",maxWidth:500,
         margin:"0 auto",height:"100vh",display:"flex",flexDirection:"column",
-        alignItems:"center",justifyContent:"center",gap:outerGap,padding:outerPad,
-        boxSizing:"border-box"}},
-        h("div",{style:{display:"flex",alignItems:"center",gap:isPortrait?0:16,
-          flexDirection:isPortrait?"column":"row",justifyContent:"center",width:"100%",flexShrink:0}},
-          h("h1",{style:{fontSize:titleFs,fontWeight:900,margin:0,
-            background:"linear-gradient(135deg,#FFE66D,#FF6B6B,#B8A9C9)",
-            WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}},"✨ 별까기 ✨"),
-          !isPortrait&&h("div",{style:{display:"flex",alignItems:"center",gap:6}},
-            h("p",{style:{fontSize:subtitleFs,color:"rgba(255,255,255,0.5)",margin:0}},"바둑알로 즐기는 별자리 대전!"),
-            h(BgmSelector,{bgmOn,setBgmOn,bgmTrack,setBgmTrack})
-          )
-        ),
-        isPortrait&&h("div",{style:{display:"flex",alignItems:"center",gap:8,flexShrink:0}},
-          h("p",{style:{fontSize:subtitleFs,color:"rgba(255,255,255,0.5)",margin:0}},"바둑알로 즐기는 별자리 대전!"),
-          h(BgmSelector,{bgmOn,setBgmOn,bgmTrack,setBgmTrack})
-        ),
-        h("div",{style:{padding:`${isPortrait?"5px 12px":"4px 10px"}`,borderRadius:16,fontSize:badgeFs,fontWeight:700,
-          border:"1.5px solid",backdropFilter:"blur(10px)",flexShrink:0,
-          background:cur===1?"rgba(255,107,107,0.25)":"rgba(78,205,196,0.25)",
-          borderColor:cur===1?"#FF6B6B":"#4ECDC4"}},
-          `${cur===1?"🔴":"🔵"} 플레이어 ${cur}의 별자리를 선택하세요!`),
+        alignItems:"center",justifyContent:"center",gap:isPortrait?16:10,
+        padding:16,boxSizing:"border-box"}},
 
-        h("div",{style:{display:"grid",gridTemplateColumns:`repeat(${cols},1fr)`,gap,width:"100%",flexShrink:0}},
-          ZODIAC.map(z=>{
-            const dis=cur===2&&p1Z?.id===z.id,isSel=sel?.id===z.id;
-            return h("div",{key:z.id,
-              style:{display:"flex",flexDirection:"column",alignItems:"center",gap:2,
-                padding:cardPad,borderRadius:10,
-                border:`2px solid ${isSel?z.color:"rgba(255,255,255,0.08)"}`,
-                background:isSel?`${z.color}20`:"rgba(255,255,255,0.03)",
-                opacity:dis?0.25:1,transform:isSel?"scale(1.04)":"scale(1)",
-                cursor:dis?"not-allowed":"pointer",transition:"all 0.15s",
-                boxShadow:isSel?`0 0 14px ${z.glowColor}`:"none"},
-              onClick:()=>{if(dis)return;cur===1?setP1Z(z):setP2Z(z);}},
-              h(ZodiacIcon,{zodiacId:z.id,size:iconSz,selected:isSel,color:z.color}),
-              h("div",{style:{fontSize:nameFs,color:isSel?z.color:"rgba(255,255,255,0.6)",
-                fontWeight:isSel?800:500,textAlign:"center",lineHeight:1.1}},z.name),
-              h("div",{style:{fontSize:monthFs,color:"rgba(255,255,255,0.3)"}},z.month)
-            );
-          })
-        ),
+        h("h1",{style:{fontSize:isPortrait?(isTablet?32:22):(isTablet?24:18),fontWeight:900,margin:0,
+          background:"linear-gradient(135deg,#FFE66D,#FF6B6B,#B8A9C9)",
+          WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}},"✨ 별까기 ✨"),
 
-        sel&&h("div",{style:{width:"100%",padding:isPortrait?(isTablet?12:8):(isTablet?10:6),borderRadius:10,
-          border:`1.5px solid ${sel.color}`,background:`${sel.color}12`,
-          display:"flex",flexDirection:"row",alignItems:"center",gap:8,
-          backdropFilter:"blur(10px)",flexShrink:0}},
-          h(ZodiacIcon,{zodiacId:sel.id,size:selIconSz,selected:true,color:sel.color}),
-          h("div",{style:{flex:1,minWidth:0}},
-            h("div",{style:{fontSize:isPortrait?(isTablet?15:12):(isTablet?13:11),fontWeight:900,color:sel.color}},sel.name),
-            h("div",{style:{fontSize:isPortrait?(isTablet?11:9):(isTablet?10:9),color:"rgba(255,255,255,0.5)",
-              whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},
-              `⚔️ ${sel.atkSkill?.name}  🛡️ ${sel.defSkill?.name}`),
-            h("div",{style:{fontSize:isPortrait?(isTablet?11:9):(isTablet?10:9),color:"rgba(255,255,255,0.75)",
-              whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",marginTop:2}},
-              `⚔️ ${sel.atkSkill?.desc}`)
-          )
-        ),
+        h("div",{style:{padding:"6px 18px",borderRadius:16,fontSize:isPortrait?13:11,fontWeight:700,
+          border:`1.5px solid ${accentColor}`,backdropFilter:"blur(10px)",
+          background:isP1?"rgba(255,107,107,0.2)":"rgba(78,205,196,0.2)"}},
+          `${isP1?"🔴":"🔵"} 플레이어 ${cur} — 별자리 주사위`),
 
-        h("div",{style:{display:"flex",gap:10,justifyContent:"center",flexShrink:0}},
-          step===1
-            ?h("button",{
-                style:{padding:btnPad,borderRadius:20,border:"none",cursor:"pointer",
-                  fontWeight:800,fontSize:btnFs,color:"white",
-                  background:p1Z?p1Z.color:"#555",opacity:p1Z?1:0.4},
-                onClick:()=>{if(p1Z)setStep(2);}},
-                "다음 → 플레이어 2 선택")
-            :h(React.Fragment,null,
-                h("button",{style:{padding:btnPad,borderRadius:20,border:"none",cursor:"pointer",
-                  fontWeight:800,fontSize:btnFs,color:"white",background:"#444"},
-                  onClick:()=>setStep(1)},"← 뒤로"),
-                h("button",{style:{padding:btnPad,borderRadius:20,border:"none",cursor:"pointer",
-                  fontWeight:800,fontSize:btnFs,
-                  color:p2Z?"#111":"#fff",background:p2Z?"#FFE66D":"#555",opacity:p2Z?1:0.4},
-                  onClick:()=>{if(p2Z)startGame();}},"🚀 게임 시작!")
+        // 주사위(별자리 슬롯) 디스플레이
+        h("div",{style:{width:diceSize,height:diceSize,borderRadius:24,
+          border:`3px solid ${displayZ?displayZ.color:"rgba(255,255,255,0.2)"}`,
+          background:"rgba(0,0,0,0.5)",backdropFilter:"blur(12px)",
+          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+          boxShadow:displayZ?`0 0 40px ${displayZ.glowColor}`:"none",
+          transition:"border-color 0.2s, box-shadow 0.2s",
+          animation:rolling?"diceSpin 0.12s ease infinite":"none"}},
+          displayZ
+            ?h(React.Fragment,null,
+                h(ZodiacIcon,{zodiacId:displayZ.id,size:iconSize,selected:true,color:displayZ.color}),
+                h("div",{style:{fontSize:isPortrait?13:11,fontWeight:800,color:displayZ.color,marginTop:4}},displayZ.name)
               )
+            :h("div",{style:{fontSize:isPortrait?48:36,opacity:0.3}},"🎲")
+        ),
+
+        // 굴린 횟수 표시
+        rolls>0&&h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
+          [0,1,2].map(i=>h("div",{key:i,style:{width:12,height:12,borderRadius:"50%",
+            background:i<rolls?accentColor:"rgba(255,255,255,0.15)"}}))
+        ),
+        rolls>0&&h("div",{style:{fontSize:11,color:"rgba(255,255,255,0.45)"}},
+          rolls>=3?"마지막 기회 사용됨":`재굴림 ${3-rolls}번 남음`
+        ),
+
+        // 결과 별자리 스킬 정보
+        displayZ&&!rolling&&h("div",{style:{width:"100%",padding:10,borderRadius:10,
+          border:`1.5px solid ${displayZ.color}`,background:`${displayZ.color}12`,
+          display:"flex",gap:10,alignItems:"center",backdropFilter:"blur(8px)"}},
+          h(ZodiacIcon,{zodiacId:displayZ.id,size:40,selected:true,color:displayZ.color}),
+          h("div",{style:{flex:1,minWidth:0}},
+            h("div",{style:{fontSize:13,fontWeight:900,color:displayZ.color}},displayZ.name),
+            h("div",{style:{fontSize:10,color:"rgba(255,255,255,0.5)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},
+              `⚔️ ${displayZ.atkSkill?.name}  🛡️ ${displayZ.defSkill?.name}`)
+          )
+        ),
+
+        // 버튼 영역
+        h("div",{style:{display:"flex",flexDirection:"column",gap:8,width:"100%",alignItems:"center"}},
+          // 굴리기 버튼
+          (!result||canReroll)&&h("button",{
+            onClick:rollDice,
+            disabled:rolling,
+            style:{padding:isPortrait?"12px 36px":"10px 28px",borderRadius:24,border:"none",
+              cursor:rolling?"not-allowed":"pointer",fontWeight:800,
+              fontSize:isPortrait?15:13,color:"#111",
+              background:rolling?"#555":"#FFE66D",
+              opacity:rolling?0.5:1,
+              boxShadow:rolling?"none":"0 0 20px rgba(255,230,109,0.5)"}},
+            rolling?"🎲 굴리는 중...":(rolls===0?"🎲 주사위 굴리기":`🎲 다시 굴리기 (${3-rolls}번 남음)`)
+          ),
+
+          // 확정 버튼 (결과가 있고 롤링 아닐 때)
+          result&&!rolling&&h("button",{
+            onClick:confirmAndNext,
+            style:{padding:isPortrait?"12px 36px":"10px 28px",borderRadius:24,border:"none",
+              cursor:"pointer",fontWeight:800,fontSize:isPortrait?15:13,
+              color:"white",background:accentColor,
+              boxShadow:`0 0 20px ${accentColor}66`}},
+            cur===1?"이 별자리로 확정! →":"🚀 게임 시작!"
+          ),
+
+          // 뒤로가기 (P2)
+          cur===2&&h("button",{
+            onClick:()=>{setStep(1);setP2Z(null);setDiceRolls(p=>({...p,2:0}));setDiceResult(p=>({...p,2:null}));},
+            style:{padding:"8px 20px",borderRadius:20,border:"1px solid rgba(255,255,255,0.2)",
+              cursor:"pointer",fontWeight:600,fontSize:11,
+              color:"rgba(255,255,255,0.6)",background:"rgba(255,255,255,0.06)"}},
+            "← 뒤로"
+          )
         )
       )
     );
   }
 
+  // ── 결과 화면 ──────────────────────────────────────────────────
   // ── 결과 화면 ──────────────────────────────────────────────────
   if(phase==="result"){
     const wz=winner===1?p1Z:p2Z;
