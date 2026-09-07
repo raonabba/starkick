@@ -385,21 +385,6 @@ export default function App() {
     } catch(e) { /* 사운드 실패해도 게임은 계속 */ }
   }
 
-  // ── window 레벨 이벤트 (iPad 드래그 버그 완전 차단) ─────────────────
-  useEffect(() => {
-    const preventDefault = (e) => { if (dragging && e.cancelable) e.preventDefault(); };
-    window.addEventListener("touchmove", preventDefault, { passive: false });
-    window.addEventListener("touchend", onMouseUp, { passive: true });
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    return () => {
-      window.removeEventListener("touchmove", preventDefault);
-      window.removeEventListener("touchend", onMouseUp);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-  }, [dragging, onMouseMove, onMouseUp]);
-
   // 배경 별 (장식용)
   const bgStars = useRef(
     Array.from({ length: 120 }, (_, i) => ({
@@ -569,6 +554,21 @@ export default function App() {
     }
     setDragging(null); setDragPos(null);
   }, [dragging, turn, doublePower]);
+
+  // ── window 레벨 이벤트 (iPad 드래그 버그 완전 차단) ─────────────────
+  useEffect(() => {
+    const preventDefault = (e) => { if (dragging && e.cancelable) e.preventDefault(); };
+    window.addEventListener("touchmove", preventDefault, { passive: false });
+    window.addEventListener("touchend", onMouseUp, { passive: true });
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("touchmove", preventDefault);
+      window.removeEventListener("touchend", onMouseUp);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [dragging, onMouseMove, onMouseUp]);
 
   // ── 스킬 시네마틱 트리거 ───────────────────────────────────────────
   function triggerCinematic(zodiac, onComplete) {

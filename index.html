@@ -761,7 +761,7 @@ function App(){
     // 황금화살 별 선택 모드
     if(piercingState?.step==="pick_star"){
       if(star.player!==turnRef.current){setLog("⚠️ 내 별을 선택해야 해요!");return;}
-      setPiercingState({step:"pick_dir",starId:star.id});
+      setPiercingState({step:"pick_dir",starId:star.id,setCdFn:piercingState.setCdFn});
       setLog("🏹 이제 방향을 선택하세요!");
       return;
     }
@@ -1005,6 +1005,13 @@ function App(){
     if(skillDef.limit!==null&&skillUses[t][useKey]>=skillDef.limit){
       setLog(`❌ ${skillDef.name} — 이미 ${skillDef.limit}회 모두 사용했어요!`);return;
     }
+    // 발동 조건이 안 맞으면(대상 없음 등) 자원 소모 없이 취소
+    if(skillDef.type==="revive_once"&&!starsRef.current.some(s=>s.player===t&&!s.alive)){
+      setLog("❌ 되살릴 별이 없어요!");return;
+    }
+    if(skillDef.type==="summon_star"&&starsRef.current.filter(s=>s.player===t).length>=6){
+      setLog("🌱 최대 6개까지만 소환할 수 있어요!");return;
+    }
     if(skillDef.limit!==null){
       setSkillUses(prev=>({...prev,[t]:{...prev[t],[useKey]:prev[t][useKey]+1}}));
     }
@@ -1019,7 +1026,7 @@ function App(){
     const t=turnRef.current;
     if(angleDeg===null){
       setLog("취소됐어요.");
-      setTurn(tt=>tt===1?2:1);
+      if(savedCdFn)savedCdFn(p=>({...p,[t]:0}));
       return;
     }
     const rad=angleDeg*Math.PI/180;
