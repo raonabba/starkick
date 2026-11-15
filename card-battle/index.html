@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>별까기 카드배틀</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+/* 레이아웃: 황도(가운데 띠)를 사이에 두고 위는 상대의 밤하늘, 아래는 나의 밤하늘. 손패는 맨 아래 쟁반. */
+:root{
+  color-scheme: dark;
+  --sky:#0a0f24; --sky-2:#111936; --panel:#19224a; --panel-2:#222d5e; --line:rgba(150,170,255,.2);
+  --ink:#f2f3ff; --muted:#a6aed8; --gold:#ffd166; --ally:#7cc8ff; --foe:#ff9b73;
+  --ok:#5fe3b5; --bad:#ff6f86; --hp:#ff8fa3; --atk:#ffc26b;
+  --display:'Jua','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;
+  --body:'Gowun Dodum','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;
+  --u:clamp(46px,12.5vw,86px);
+}
+html,body{height:100%}
+body{background:var(--sky);color:var(--ink);font-family:var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px;
+  box-sizing:border-box;overflow-x:hidden;
+  background-image:radial-gradient(1px 1px at 12% 18%,#fff8 50%,transparent 51%),radial-gradient(1px 1px at 72% 9%,#fff6 50%,transparent 51%),radial-gradient(1.5px 1.5px at 88% 62%,#fff7 50%,transparent 51%),radial-gradient(1px 1px at 33% 77%,#fff5 50%,transparent 51%),radial-gradient(1px 1px at 55% 40%,#fff4 50%,transparent 51%),radial-gradient(ellipse at 50% 0%,#1b2660 0%,transparent 60%);
+  background-attachment:fixed}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.ic{width:1em;height:1em;fill:currentColor;flex:none}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:12px;min-height:100%}
+h1,h2,.disp{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
+
+/* ── 시작 화면 ── */
+#setup{display:flex;flex-direction:column;gap:18px;padding-block:8px 24px}
+.title{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.title h1{font-size:clamp(34px,8vw,52px);line-height:1;color:var(--gold);letter-spacing:-.5px}
+.title p{margin:0;color:var(--muted);font-size:15px}
+.rule{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rule div{background:var(--sky-2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:center;font-size:14px;line-height:1.45}
+.rule .ic{font-size:30px}
+.rule b{font-family:var(--display);font-weight:400;font-size:17px;display:block}
+.lbl{font-family:var(--display);font-size:18px;color:var(--muted);margin-bottom:8px}
+.diffs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.diff{background:var(--sky-2);border:2px solid var(--line);border-radius:14px;padding:12px 6px;text-align:center}
+.diff b{font-family:var(--display);font-weight:400;font-size:22px;display:block}
+.diff span{font-size:13px;color:var(--muted)}
+.diff[aria-pressed="true"]{border-color:var(--gold);background:var(--panel)}
+.diff[aria-pressed="true"] b{color:var(--gold)}
+.heroes{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.hpick{background:var(--sky-2);border:2px solid var(--line);border-radius:14px;padding:10px 2px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px}
+.hpick .ic{font-size:30px;color:var(--c)}
+.hpick[aria-pressed="true"]{border-color:var(--c);background:var(--panel)}
+.myth{background:var(--sky-2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.6;color:var(--muted)}
+.myth b{color:var(--ink);font-family:var(--display);font-weight:400;font-size:16px}
+.go{background:var(--gold);color:#2a1d00;border:0;border-radius:16px;padding:16px;font-family:var(--display);font-size:24px;box-shadow:0 6px 0 #b98d1f}
+.go:active{transform:translateY(3px);box-shadow:0 3px 0 #b98d1f}
+.credit{font-size:11px;color:var(--muted);opacity:.8;line-height:1.5}
+.credit a{color:var(--muted)}
+
+/* ── 게임 화면 ── */
+#game{display:flex;flex-direction:column;gap:8px}
+.herorow{display:flex;align-items:center;gap:10px}
+.hero{display:flex;align-items:center;gap:10px;background:var(--sky-2);border:2px solid var(--line);border-radius:16px;padding:6px 12px 6px 6px;min-width:0;flex:1}
+.hero .face{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--panel);font-size:30px;color:var(--c);flex:none;border:2px solid var(--c)}
+.hero .info{flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;text-align:left}
+.hero .nm{display:block;font-family:var(--display);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hpbar{display:block;height:10px;background:#0006;border-radius:6px;overflow:hidden;margin-top:4px}
+.hpbar i{display:block;height:100%;background:linear-gradient(90deg,var(--bad),var(--hp));transition:width .4s}
+.hpnum{font-family:var(--display);font-size:20px;color:var(--hp);display:flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums}
+.side-info{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:12px;color:var(--muted);flex:none}
+.mana{display:flex;align-items:center;gap:3px;color:var(--gold);font-family:var(--display);font-size:15px}
+.pips{display:flex;gap:2px}.pips i{width:10px;height:10px;transform:rotate(45deg);border:1.5px solid var(--gold);border-radius:2px}
+.pips i.on{background:var(--gold)}
+.board{min-height:calc(var(--u) + 30px);display:flex;justify-content:center;align-items:center;gap:clamp(14px,3.5vw,20px);padding:10px 6px;border-radius:18px;background:#ffffff05;border:1px dashed var(--line)}
+.board .empty{color:var(--muted);font-size:13px;opacity:.7}
+.ecliptic{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:40px}
+.banner{font-family:var(--display);font-size:16px;flex:1;text-align:center;color:var(--muted);min-width:0}
+.banner.mine{color:var(--ally)}.banner.foe{color:var(--foe)}
+.endturn{background:var(--panel-2);border:2px solid var(--ally);border-radius:14px;padding:9px 14px;font-family:var(--display);font-size:17px;color:var(--ally);white-space:nowrap}
+.endturn.nudge{background:var(--ally);color:#06233a}
+.endturn:disabled{opacity:.4;border-color:var(--line);color:var(--muted);background:var(--sky-2)}
+.sound{background:none;border:1px solid var(--line);border-radius:12px;width:40px;height:40px;color:var(--muted);font-size:18px}
+
+.unit{position:relative;width:var(--u);height:calc(var(--u) + 14px);border-radius:18px;border:2px solid var(--line);background:var(--panel);display:flex;align-items:center;justify-content:center;padding:0;transition:transform .15s}
+.unit .face{font-size:calc(var(--u) * .56);color:var(--tone)}
+.unit.p{--tone:var(--ally)}.unit.e{--tone:var(--foe)}
+.unit.taunt{border-color:#c9d3ff;border-radius:12px 12px 28px 28px;outline:2px solid #c9d3ff;outline-offset:2px}
+.unit.shielded::after{content:"";position:absolute;inset:-6px;border-radius:22px;border:3px solid #fff8;box-shadow:0 0 14px #bfe3ffaa;pointer-events:none}
+.unit.ready{box-shadow:0 0 0 3px var(--ok),0 0 16px #5fe3b588}
+.unit.picked{transform:translateY(-6px);box-shadow:0 0 0 4px var(--gold),0 0 20px #ffd16699}
+.unit.tgt,.hero.tgt{animation:tgt 1s infinite;border-color:var(--bad)}
+@keyframes tgt{50%{box-shadow:0 0 0 5px #ff6f8655}}
+.unit.dim{opacity:.5}
+.st{position:absolute;bottom:-8px;min-width:26px;height:24px;border-radius:12px;display:grid;place-items:center;font-family:var(--display);font-size:14px;padding:0 4px;border:2px solid var(--sky);font-variant-numeric:tabular-nums}
+.st.a{left:-6px;background:var(--atk);color:#3a2300}.st.h{right:-6px;background:var(--hp);color:#3d0010}
+.st.h.hurt{background:var(--bad);color:#fff}
+.kw{position:absolute;top:-8px;right:-6px;display:flex;gap:2px}
+.kw span{width:22px;height:22px;border-radius:50%;background:var(--sky);border:1.5px solid var(--line);display:grid;place-items:center;font-size:13px;color:#dfe6ff}
+
+.hand{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;padding:8px;border-radius:18px;background:var(--sky-2);border:1px solid var(--line);min-height:120px}
+.card{position:relative;border-radius:14px;border:2px solid #ffd16655;padding:18px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;
+  background:var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='110'%3E%3Cg fill='%23ffffff' fill-opacity='.35'%3E%3Ccircle cx='14' cy='20' r='1.6'/%3E%3Ccircle cx='38' cy='12' r='1.2'/%3E%3Ccircle cx='64' cy='28' r='1.6'/%3E%3Ccircle cx='52' cy='86' r='1.3'/%3E%3Ccircle cx='20' cy='96' r='1.5'/%3E%3C/g%3E%3Cpath d='M14 20 38 12 64 28M52 86 20 96' stroke='%23ffffff' stroke-opacity='.12' fill='none'/%3E%3C/svg%3E") center/cover}
+.card.spell{border-color:#b9a8ff66;background-color:#251f52}
+.card .face{font-size:clamp(28px,8vw,42px);color:var(--gold)}
+.card.spell .face{color:#c9b8ff}
+.card .nm{font-size:12px;line-height:1.2;text-align:center;word-break:keep-all;min-height:2.4em;display:flex;align-items:center}
+.card .cost{position:absolute;top:-8px;left:-6px;width:28px;height:28px;display:grid;place-items:center;font-family:var(--display);font-size:16px;color:#2a1d00;background:var(--gold);clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+.card .sts{display:flex;gap:6px;font-family:var(--display);font-size:14px}
+.card .sts .a{color:var(--atk)}.card .sts .h{color:var(--hp)}
+.card .fx{font-size:11px;color:#d9ceff;text-align:center;line-height:1.2}
+.card.no{filter:saturate(.4);opacity:.6}
+.card.sel{border-color:var(--gold);transform:translateY(-6px);box-shadow:0 8px 18px #0008}
+.card.back{background:var(--panel-2);border-color:var(--line)}
+.detail{background:var(--sky-2);border:1px solid var(--line);border-radius:16px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start}
+.detail .big{font-size:48px;color:var(--gold);flex:none}
+.detail .txt{flex:1;min-width:0;font-size:14px;line-height:1.55}
+.detail .txt b{font-family:var(--display);font-weight:400;font-size:18px}
+.detail .tags{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+.detail .tags span{font-size:12px;background:var(--panel);border-radius:10px;padding:2px 8px;display:inline-flex;gap:4px;align-items:center}
+.detail .act{display:flex;flex-direction:column;gap:6px;flex:none;align-items:stretch}
+.detail .play{background:var(--gold);color:#2a1d00;border:0;border-radius:12px;padding:10px 14px;font-family:var(--display);font-size:17px}
+.detail .play:disabled{background:var(--panel);color:var(--muted)}
+.detail .why{font-size:12px;color:var(--bad);max-width:9em}
+.hint{font-size:13px;color:var(--muted);text-align:center}
+.cancel{background:none;border:1px solid var(--line);border-radius:12px;padding:6px 12px;color:var(--muted);font-size:13px}
+
+/* ── 문제 창 ── */
+.overlay{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:#05081acc;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));backdrop-filter:blur(3px)}
+.quiz{width:min(520px,100%);background:var(--sky-2);border:2px solid var(--line);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:14px;animation:pop .25s ease-out}
+@keyframes pop{from{transform:scale(.92);opacity:.4}}
+.quiz.watch{border-color:#ff9b7366}
+.qhead{display:flex;align-items:center;gap:8px;font-family:var(--display);font-size:16px;color:var(--muted);flex-wrap:wrap}
+.qhead .ic{font-size:24px}
+.qhead .pw{margin-left:auto;color:var(--atk)}
+.eq{font-family:var(--display);font-size:clamp(36px,11vw,58px);text-align:center;line-height:1.15;display:flex;align-items:center;justify-content:center;gap:.25em;flex-wrap:wrap;font-variant-numeric:tabular-nums;padding:6px 0}
+.eq.long{font-size:clamp(26px,7vw,40px)}
+.frac{display:inline-flex;flex-direction:column;align-items:center;line-height:1;font-size:.72em;vertical-align:middle}
+.frac>span:first-child{border-bottom:3px solid currentColor;padding:0 .12em .06em}
+.frac>span:last-child{padding-top:.06em}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.choice{background:var(--panel);border:3px solid var(--line);border-radius:18px;min-height:76px;font-family:var(--display);font-size:clamp(28px,8vw,38px);display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.choice:hover:not(:disabled){border-color:var(--gold)}
+.choice.right{background:#1d5a4a;border-color:var(--ok)}
+.choice.wrong{background:#5a1d2b;border-color:var(--bad)}
+.choice:disabled{cursor:default}
+.timer{height:12px;background:#0006;border-radius:8px;overflow:hidden;position:relative}
+.timer i{position:absolute;inset:0 auto 0 0;width:100%;background:linear-gradient(90deg,var(--bad),var(--gold),var(--ok));transform-origin:left}
+.tsec{font-family:var(--display);font-size:18px;color:var(--gold);display:flex;align-items:center;gap:6px;justify-content:center;font-variant-numeric:tabular-nums}
+.result{border-radius:16px;padding:12px 14px;line-height:1.55;font-size:15px;display:flex;flex-direction:column;gap:4px}
+.result.ok{background:#16443a;color:#d6fff0}
+.result.bad{background:#47182a;color:#ffe1e7}
+.result b{font-family:var(--display);font-weight:400;font-size:22px}
+.result .pow{font-family:var(--display);font-size:20px}
+.result .pow s{opacity:.6}
+.result .tip{display:flex;gap:6px;align-items:flex-start;font-size:14px;opacity:.95}
+.result .tip .ic{font-size:18px;color:var(--gold);margin-top:2px}
+.qbtn{background:var(--gold);color:#2a1d00;border:0;border-radius:14px;padding:12px;font-family:var(--display);font-size:20px}
+
+/* ── 효과 ── */
+#fx{position:fixed;inset:0;pointer-events:none;z-index:60}
+.float{position:absolute;transform:translate(-50%,-50%);font-family:var(--display);font-size:30px;text-shadow:0 2px 0 #000,0 0 12px #000;animation:up 1.2s ease-out forwards;white-space:nowrap}
+.float.dmg{color:var(--bad)}.float.heal{color:var(--ok)}.float.blk{color:#dfe6ff;font-size:20px}
+@keyframes up{to{transform:translate(-50%,-150%);opacity:0}}
+.shake{animation:shk .35s}
+@keyframes shk{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+/* ── 끝 화면 ── */
+.endbox{width:min(520px,100%);background:var(--sky-2);border:2px solid var(--gold);border-radius:24px;padding:20px;display:flex;flex-direction:column;gap:14px;max-height:100%;overflow:auto}
+.endbox h2{font-size:clamp(28px,8vw,40px);color:var(--gold);display:flex;align-items:center;gap:12px}
+.endbox h2 .ic{font-size:52px;color:var(--c)}
+.score{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.score div{background:var(--panel);border-radius:14px;padding:10px;text-align:center;font-size:12px;color:var(--muted)}
+.score b{display:block;font-family:var(--display);font-weight:400;font-size:26px;color:var(--ink);font-variant-numeric:tabular-nums}
+.review{display:flex;flex-direction:column;gap:6px}
+.review div{background:var(--panel);border-radius:12px;padding:8px 12px;font-size:14px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.review .eqs{font-family:var(--display);font-size:18px}
+.review .ans{color:var(--ok);font-family:var(--display);font-size:18px}
+
+@media (max-width:520px){
+  .heroes{grid-template-columns:repeat(4,1fr)}
+  .rule{grid-template-columns:1fr}
+  .diff b{font-size:19px}.diff span{font-size:11px}
+  .detail{flex-wrap:wrap}.detail .act{flex-direction:row;align-items:center;width:100%}.detail .play{flex:1}.detail .why{max-width:none}
+  .card .nm{font-size:11px}
+  .hero{padding-right:8px}.hero .nm{font-size:14px}
+  .hero .face{width:38px;height:38px;font-size:24px}.hpnum{font-size:17px}
+}
+@media (max-width:380px){
+  .st{min-width:22px;height:21px;font-size:12px;padding:0 3px}
+  .card{padding-top:16px}.card .face{font-size:26px}.card .nm{font-size:10.5px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <section id="setup" aria-label="게임 준비">
+    <div class="title"><h1>별까기 카드배틀</h1><p>문제를 맞히면 카드가 힘껏 공격해요</p></div>
+    <div class="rule">
+      <div><svg class="ic" style="color:var(--ok)" viewBox="0 0 512 512" data-i="ok"></svg><span><b>정답이면</b>카드 공격력 그대로 100% 공격!</span></div>
+      <div><svg class="ic" style="color:var(--bad)" viewBox="0 0 512 512" data-i="no"></svg><span><b>틀리거나 시간이 지나면</b>공격력이 10~50%로 줄어요</span></div>
+    </div>
+    <div>
+      <div class="lbl">난이도</div>
+      <div class="diffs" id="diffs"></div>
+    </div>
+    <div>
+      <div class="lbl">나의 별자리 영웅</div>
+      <div class="heroes" id="heroes"></div>
+    </div>
+    <div class="myth" id="mythbox"></div>
+    <button class="go" id="start">대결 시작!</button>
+    <p class="credit">아이콘: Delapouite, Lorc, Skoll, Cathelineau, Zeromancer, Sbed · <a href="https://game-icons.net" target="_blank" rel="noopener">game-icons.net</a> · <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a></p>
+  </section>
+
+  <section id="game" hidden aria-label="대결">
+    <div class="herorow">
+      <button class="hero" id="foeHero" data-hero="e"></button>
+      <div class="side-info" id="foeInfo"></div>
+    </div>
+    <div class="board" id="foeBoard" aria-label="상대 자리"></div>
+    <div class="ecliptic">
+      <button class="sound" id="sound" aria-label="소리 끄기">♪</button>
+      <div class="banner" id="banner" aria-live="polite"></div>
+      <button class="endturn" id="endTurn">턴 끝내기</button>
+    </div>
+    <div class="board" id="myBoard" aria-label="내 자리"></div>
+    <div class="herorow">
+      <button class="hero" id="myHero" data-hero="p"></button>
+      <div class="side-info" id="myInfo"></div>
+    </div>
+    <div class="hand" id="hand" aria-label="내 카드"></div>
+    <div id="detail"></div>
+  </section>
+</div>
+<div id="fx"></div>
+<div class="overlay" id="quizLayer" hidden></div>
+<div class="overlay" id="endLayer" hidden></div>
+
+<script>
+// ===ENGINE START===
+// 별까기 카드배틀 — 규칙·문제·컴퓨터 상대 (화면과 분리된 순수 로직)
+const MAX_HAND = 5, MAX_BOARD = 5, MAX_MANA = 6, HERO_HP = 200;
+
+// 난이도: 화면에는 학년을 표시하지 않음 (내부 범위만)
+const DIFFS = {
+  easy:   { label: '이지', tiers: ['e'],           time: 15, aiAcc: 0.6 },
+  normal: { label: '노멀', tiers: ['n'],           time: 10, aiAcc: 0.7 },
+  hard:   { label: '하드', tiers: ['h'],           time: 10, aiAcc: 0.75 },
+  super:  { label: '슈퍼', tiers: ['e', 'n', 'h'], time: null, aiAcc: 0.8 },
+};
+const SUPER_TIME = { e: 5, n: 7, h: 10 };
+
+// 카드: 공격력은 카드별 고정
+const CARDS = {
+  owl:      { name: '아테나의 부엉이', type: 'minion', cost: 1, atk: 20, hp: 10, kw: [],
+              story: '지혜의 여신 아테나 곁을 지키는 부엉이예요. 밤에도 모든 것을 볼 수 있어서 지혜의 상징이 되었어요.' },
+  spartan:  { name: '스파르타 전사', type: 'minion', cost: 2, atk: 20, hp: 30, kw: ['taunt'],
+              story: '고대 그리스의 도시 스파르타의 용감한 전사예요. 둥근 방패로 친구들을 지켰어요.' },
+  pegasus:  { name: '페가수스', type: 'minion', cost: 3, atk: 30, hp: 20, kw: ['charge'],
+              story: '날개 달린 하얀 말이에요. 영웅 벨레로폰을 태우고 하늘을 날았고, 나중에 별자리가 되었어요.' },
+  centaur:  { name: '켄타우로스 케이론', type: 'minion', cost: 3, atk: 20, hp: 40, kw: ['heal'], heal: 30,
+              story: '반은 사람, 반은 말인 지혜로운 스승이에요. 헤라클레스와 아킬레우스를 가르쳤고 사수자리가 되었어요.' },
+  minotaur: { name: '미노타우로스', type: 'minion', cost: 4, atk: 40, hp: 50, kw: [],
+              story: '크레타 섬 미궁에 살던 소머리 괴물이에요. 영웅 테세우스는 실타래를 따라 미궁을 빠져나왔어요.' },
+  medusa:   { name: '메두사', type: 'minion', cost: 4, atk: 30, hp: 40, kw: ['shield'],
+              story: '머리카락이 뱀인 괴물이에요. 눈이 마주치면 돌이 되어서, 페르세우스는 방패에 비친 모습을 보며 싸웠어요.' },
+  lion:     { name: '네메아의 사자', type: 'minion', cost: 5, atk: 50, hp: 50, kw: ['shield'],
+              story: '어떤 무기도 뚫지 못하는 가죽을 가진 사자예요. 헤라클레스의 첫 번째 과업이었고 사자자리가 되었어요.' },
+  hydra:    { name: '히드라', type: 'minion', cost: 6, atk: 60, hp: 60, kw: ['taunt'],
+              story: '머리 하나를 자르면 두 개가 자라는 물뱀이에요. 헤라클레스의 두 번째 과업이었어요.' },
+  bolt:     { name: '제우스의 번개', type: 'spell', cost: 2, atk: 30, target: 'enemy',
+              story: '신들의 왕 제우스가 던지는 번개예요. 외눈박이 거인 키클롭스가 만들어 주었어요.', text: '적 하나에게 30 피해', short: '30 피해' },
+  trident:  { name: '포세이돈의 삼지창', type: 'spell', cost: 4, atk: 20, target: 'allEnemyMinions',
+              story: '바다의 신 포세이돈의 삼지창이에요. 땅을 내리치면 파도와 지진이 일어났어요.', text: '적 하수인 모두에게 20 피해', short: '모두 20 피해' },
+  lyre:     { name: '아폴론의 리라', type: 'spell', cost: 2, heal: 50, target: 'self',
+              story: '음악의 신 아폴론의 악기예요. 아름다운 소리로 마음과 몸을 치유했어요.', text: '내 영웅 체력 50 회복', short: '체력 +50' },
+};
+const DECK_LIST = ['owl','owl','spartan','spartan','pegasus','pegasus','centaur','bolt','bolt','lyre','minotaur','medusa','lion','hydra','trident'];
+const KW = { taunt: '방패', charge: '돌진', shield: '보호막', heal: '치유' };
+const KW_HELP = {
+  taunt: '상대는 방패 카드부터 공격해야 해요',
+  charge: '나온 턴에 바로 공격할 수 있어요',
+  shield: '처음 받는 공격 한 번을 막아요',
+  heal: '나올 때 내 영웅 체력을 회복해요',
+};
+
+// ── 오답일 때 공격력: 카드 공격력의 10~50% (최소 1) ──
+function wrongDamage(atk, rng) {
+  return Math.max(1, Math.round(atk * (0.1 + rng() * 0.4)));
+}
+function damageFor(atk, correct, rng) { return correct ? atk : wrongDamage(atk, rng); }
+
+// ── 수학 문제 ──
+const ri = (rng, a, b) => a + Math.floor(rng() * (b - a + 1));
+const pick = (rng, arr) => arr[Math.floor(rng() * arr.length)];
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+const lcm = (a, b) => (a / gcd(a, b)) * b;
+const I = v => ({ s: String(v), v });
+const F = (n, d) => { const g = gcd(n, d); n /= g; d /= g; return d === 1 ? I(n) : { s: `${n}/${d}`, v: n / d }; };
+const Fraw = (n, d) => ({ s: `${n}/${d}`, v: n / d });
+const D = tenths => ({ s: (tenths / 10).toFixed(tenths % 10 === 0 ? 0 : 1), v: tenths / 10 });
+
+const GEN = {
+  e: [
+    function add2(rng) { const a = ri(rng, 15, 79), b = ri(rng, 6, 99 - a); return { q: `${a} + ${b}`, ans: I(a + b), wrong: [I(a + b + 10), I(a + b - 10), I(a + b + 1), I(a + b - 1)], tip: '일의 자리끼리 더해서 10이 넘으면 십의 자리로 1을 올려요.' }; },
+    function sub2(rng) { if (rng() < 0.4) { const a = ri(rng, 3, 9) * 10, b = ri(rng, 1, a / 10 - 1) * 10; return { q: `${a} − ${b}`, ans: I(a - b), wrong: [I(a - b + 10), I(a - b - 10), I(a + b), I(a - b + 20)], tip: `${a / 10} − ${b / 10} = ${(a - b) / 10} 이니까 ${a - b}이에요.` }; }
+      const a = ri(rng, 31, 99), b = ri(rng, 12, a - 5); return { q: `${a} − ${b}`, ans: I(a - b), wrong: [I(a - b + 10), I(a - b - 10), I(Math.abs(Math.floor(a / 10) - Math.floor(b / 10)) * 10 + Math.abs(a % 10 - b % 10)), I(a - b + 1)], tip: '일의 자리에서 뺄 수 없으면 십의 자리에서 10을 빌려 와요.' }; },
+    function add3(rng) { const a = ri(rng, 120, 680), b = ri(rng, 105, 899 - a); return { q: `${a} + ${b}`, ans: I(a + b), wrong: [I(a + b + 10), I(a + b - 10), I(a + b + 100), I(a + b - 100)], tip: '일의 자리, 십의 자리, 백의 자리 순서로 더해요.' }; },
+    function sub3(rng) { const a = ri(rng, 300, 950), b = ri(rng, 110, a - 50); return { q: `${a} − ${b}`, ans: I(a - b), wrong: [I(a - b + 10), I(a - b - 10), I(a - b + 100), I(a - b - 100)], tip: '받아내림을 잊지 않았는지 확인해요.' }; },
+    function times(rng) { const a = ri(rng, 2, 9), b = ri(rng, 2, 9); return { q: `${a} × ${b}`, ans: I(a * b), wrong: [I(a * (b + 1)), I(a * (b - 1)), I((a + 1) * b), I(a + b)], tip: `${a}단: ${a}씩 ${b}번 더한 값이에요.` }; },
+  ],
+  n: [
+    function mul1(rng) { const a = rng() < 0.5 ? ri(rng, 12, 98) : ri(rng, 102, 489), b = ri(rng, 3, 9); return { q: `${a} × ${b}`, ans: I(a * b), wrong: [I(a * b + b), I(a * b - b), I(a * b + 10), I(a * b - 10)], tip: '일의 자리부터 곱하고 올림한 수를 더해요.' }; },
+    function mul2(rng) { const a = ri(rng, 12, 29), b = ri(rng, 11, 19); return { q: `${a} × ${b}`, ans: I(a * b), wrong: [I(a * b + a), I(a * b - a), I(a * b + 10), I(a * (b % 10) + a)], tip: `${a} × ${b % 10}, ${a} × 10을 따로 구해서 더해요.` }; },
+    function div(rng) { const b = ri(rng, 3, 9), q = ri(rng, 4, 25); return { q: `${b * q} ÷ ${b}`, ans: I(q), wrong: [I(q + 1), I(q - 1), I(q + 10), I(q * 2)], tip: `${b} × ${q} = ${b * q} 이니까 몫은 ${q}이에요.` }; },
+    function rem(rng) { const b = ri(rng, 4, 9), q = ri(rng, 3, 12), r = ri(rng, 1, b - 1); const others = [...Array(b + 1).keys()].filter(x => x !== r).map(I); return { q: `${b * q + r} ÷ ${b} = ${q} … ?`, ans: I(r), wrong: others, tip: `${b} × ${q} = ${b * q}, 남은 수는 ${r}. 나머지는 나누는 수 ${b}보다 작아요.` }; },
+    function fracSame(rng) { const d = ri(rng, 5, 12), n1 = ri(rng, 1, d - 3), n2 = ri(rng, 1, d - 1 - n1); if (rng() < 0.5) return { q: `${n1}/${d} + ${n2}/${d}`, ans: Fraw(n1 + n2, d), wrong: [Fraw(n1 + n2, d + d), Fraw(n1 + n2 + 1, d), Fraw(Math.max(1, n1 + n2 - 1), d), Fraw(n1 * n2, d)], tip: '분모가 같으면 분모는 그대로 두고 분자끼리 더해요.' };
+      const a = n1 + n2; return { q: `${a}/${d} − ${n2}/${d}`, ans: Fraw(n1, d), wrong: [Fraw(n1 + 1, d), Fraw(n1, d + d), Fraw(a + n2, d), Fraw(Math.max(1, n1 - 1) === n1 ? n1 + 2 : n1 - 1, d)], tip: '분모가 같으면 분모는 그대로 두고 분자끼리 빼요.' }; },
+  ],
+  h: [
+    function order(rng) { const a = ri(rng, 3, 20), b = ri(rng, 2, 9), c = ri(rng, 2, 9); if (rng() < 0.5) return { q: `${a} + ${b} × ${c}`, ans: I(a + b * c), wrong: [I((a + b) * c), I(a + b + c), I(a * b + c), I(a + b * c + 1)], tip: '곱셈을 덧셈보다 먼저 계산해요.' };
+      return { q: `(${a} + ${b}) × ${c}`, ans: I((a + b) * c), wrong: [I(a + b * c), I(a * c + b), I((a + b) * c + c), I((a + b) * c - c)], tip: '괄호 안을 가장 먼저 계산해요.' }; },
+    function gcdq(rng) { const g = ri(rng, 2, 8); let x = ri(rng, 2, 6), y = ri(rng, 2, 7); while (gcd(x, y) !== 1 || x === y) { x = ri(rng, 2, 6); y = ri(rng, 2, 7); } const a = g * x, b = g * y;
+      if (rng() < 0.5) return { q: `${a}, ${b}의 최대공약수`, ans: I(g), wrong: [I(a * b / g), I(1), I(g * 2), I(Math.min(a, b))].concat([2, 3, 4].filter(z => g % z === 0 && z !== g).map(I)), tip: `두 수를 모두 나누어떨어지게 하는 가장 큰 수예요.` };
+      return { q: `${a}, ${b}의 최소공배수`, ans: I(lcm(a, b)), wrong: [I(a * b), I(g), I(a + b), I(lcm(a, b) * 2)], tip: `두 수의 공통 배수 중 가장 작은 수예요.` }; },
+    function fracDiff(rng) { let d1, d2, n1, n2; do { d1 = ri(rng, 2, 6); d2 = ri(rng, 2, 7); n1 = ri(rng, 1, d1 - 1); n2 = ri(rng, 1, d2 - 1); } while (d1 === d2 || n1 / d1 + n2 / d2 >= 1);
+      const L = lcm(d1, d2), N = n1 * L / d1 + n2 * L / d2; return { q: `${n1}/${d1} + ${n2}/${d2}`, ans: F(N, L), wrong: [Fraw(n1 + n2, d1 + d2), Fraw(n1 + n2, d1 * d2), Fraw(N + 1, L), Fraw(Math.max(1, N - 1), L)], tip: `분모를 ${L}로 같게(통분) 만든 뒤 분자끼리 더해요.` }; },
+    function decMul(rng) { const a = ri(rng, 2, 19), b = ri(rng, 2, 9); return { q: `${(a / 10).toFixed(1)} × ${b}`, ans: D(a * b), wrong: [I(a * b), D(a * b + 1), D(a * b - 1), D(Math.max(1, Math.round(a * b / 10)))], tip: `${a} × ${b} = ${a * b}, 여기에 소수점을 찍어 소수 한 자리로 만들어요.` }; },
+    function decDiv(rng) { const q = ri(rng, 2, 19), b = ri(rng, 2, 9); return { q: `${(q * b / 10).toFixed(1)} ÷ ${b}`, ans: D(q), wrong: [I(q), D(q + 1), D(q - 1), D(q + 10)], tip: `${q * b} ÷ ${b} = ${q}, 여기에 소수점을 그대로 내려 찍어요.` }; },
+  ],
+};
+
+function makeProblem(diffKey, rng) {
+  const tier = pick(rng, DIFFS[diffKey].tiers);
+  const p = pick(rng, GEN[tier])(rng);
+  const seen = new Set([p.ans.v.toFixed(6)]);
+  const choices = [p.ans];
+  for (const w of shuffle(p.wrong.slice(), rng)) {
+    if (choices.length === 4) break;
+    if (!(w.v > 0) && !(w.v === 0 && p.ans.v !== 0)) continue;
+    const k = w.v.toFixed(6);
+    if (seen.has(k)) continue;
+    seen.add(k); choices.push(w);
+  }
+  let bump = 2;
+  while (choices.length < 4) { // 보기가 모자라면 근처 값으로 채움
+    const v = p.ans.v + bump; bump = bump > 0 ? -bump : -bump + 1;
+    const c = Number.isInteger(p.ans.v) ? I(v) : { s: String(+v.toFixed(2)), v };
+    if (c.v > 0 && !seen.has(c.v.toFixed(6))) { seen.add(c.v.toFixed(6)); choices.push(c); }
+  }
+  const time = DIFFS[diffKey].time || SUPER_TIME[tier];
+  return { q: p.q, ans: p.ans, choices: shuffle(choices, rng), tip: p.tip, tier, time };
+}
+
+function shuffle(a, rng) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+// ── 게임 상태 ──
+let UID = 0;
+function newSide(heroId, rng) {
+  return { hero: { id: heroId, hp: HERO_HP, max: HERO_HP }, mana: 0, maxMana: 0, deck: shuffle(DECK_LIST.slice(), rng), hand: [], board: [] };
+}
+function newGame(pHero, eHero, diff, rng) {
+  const st = { diff, turn: 'p', turnNo: 0, winner: null, p: newSide(pHero, rng), e: newSide(eHero, rng) };
+  for (let i = 0; i < 3; i++) draw(st, 'p');
+  for (let i = 0; i < 4; i++) draw(st, 'e');
+  startTurn(st, 'p');
+  return st;
+}
+const other = s => (s === 'p' ? 'e' : 'p');
+function draw(st, side) {
+  const S = st[side];
+  if (S.hand.length >= MAX_HAND) return null;
+  if (!S.deck.length) { S.deck = shuffle(DECK_LIST.slice(), Math.random); S.refills = (S.refills || 0) + 1; } // 덱이 비면 다시 채움 (게임이 멈추지 않게)
+  const id = S.deck.pop(); S.hand.push(id); return id;
+}
+function startTurn(st, side) {
+  st.turn = side; st.turnNo++;
+  const S = st[side];
+  S.maxMana = Math.min(MAX_MANA, S.maxMana + 1); S.mana = S.maxMana;
+  const drawn = st.turnNo > 1 ? draw(st, side) : null;
+  S.board.forEach(m => { m.ready = true; });
+  return drawn;
+}
+function endTurn(st) { if (!st.winner) return startTurn(st, other(st.turn)); }
+function findMinion(st, uid) {
+  for (const side of ['p', 'e']) { const m = st[side].board.find(x => x.uid === uid); if (m) return { side, m }; }
+  return null;
+}
+function canPlay(st, side, idx) {
+  const S = st[side], c = CARDS[S.hand[idx]];
+  if (!c) return { ok: false, why: '' };
+  if (c.cost > S.mana) return { ok: false, why: `별빛이 ${c.cost - S.mana}개 더 필요해요` };
+  if (c.type === 'minion' && S.board.length >= MAX_BOARD) return { ok: false, why: '내 자리가 가득 찼어요' };
+  if (c.target === 'allEnemyMinions' && !st[other(side)].board.length) return { ok: false, why: '공격할 적 하수인이 없어요' };
+  return { ok: true };
+}
+// 하수인 소환 (문제 없음)
+function playMinion(st, side, idx) {
+  const S = st[side], id = S.hand[idx], c = CARDS[id];
+  S.hand.splice(idx, 1); S.mana -= c.cost;
+  const m = { uid: ++UID, id, atk: c.atk, hp: c.hp, max: c.hp, taunt: c.kw.includes('taunt'), shield: c.kw.includes('shield'), ready: c.kw.includes('charge') };
+  S.board.push(m);
+  let healed = 0;
+  if (c.heal) { healed = Math.min(c.heal, S.hero.max - S.hero.hp); S.hero.hp += healed; }
+  return { m, healed };
+}
+function spendSpell(st, side, idx) { const S = st[side], id = S.hand[idx]; S.hand.splice(idx, 1); S.mana -= CARDS[id].cost; return id; }
+function healHero(st, side, amt) { const h = st[side].hero, n = Math.min(amt, h.max - h.hp); h.hp += n; return n; }
+
+// 공격 가능한 대상 (방패 규칙)
+function legalTargets(st, side) {
+  const foe = st[other(side)];
+  const taunts = foe.board.filter(m => m.taunt);
+  if (taunts.length) return taunts.map(m => ({ kind: 'm', uid: m.uid }));
+  return foe.board.map(m => ({ kind: 'm', uid: m.uid })).concat([{ kind: 'hero' }]);
+}
+function spellTargets(st, side) { // 번개: 방패 무시, 적 누구나
+  const foe = st[other(side)];
+  return foe.board.map(m => ({ kind: 'm', uid: m.uid })).concat([{ kind: 'hero' }]);
+}
+// 피해 주기 (보호막 처리). 반환: 실제 들어간 피해, 막혔는지
+function hit(st, side, target, dmg) {
+  if (target.kind === 'hero') { const h = st[side].hero; h.hp -= dmg; return { dealt: dmg, blocked: false }; }
+  const f = findMinion(st, target.uid); if (!f) return { dealt: 0, blocked: false };
+  if (f.m.shield) { f.m.shield = false; return { dealt: 0, blocked: true }; }
+  f.m.hp -= dmg; return { dealt: dmg, blocked: false };
+}
+function cleanup(st) {
+  const dead = [];
+  for (const side of ['p', 'e']) { st[side].board = st[side].board.filter(m => { if (m.hp <= 0) { dead.push(m); return false; } return true; }); }
+  if (st.p.hero.hp <= 0) st.winner = 'e';
+  else if (st.e.hero.hp <= 0) st.winner = 'p';
+  return dead;
+}
+// 하수인 공격: 문제 결과(correct)에 따라 피해, 반격은 상대 공격력 그대로
+function resolveAttack(st, side, attackerUid, target, correct, rng) {
+  const A = findMinion(st, attackerUid).m, foe = other(side);
+  const dmg = damageFor(A.atk, correct, rng);
+  const r = hit(st, foe, target, dmg);
+  let counter = 0, counterBlocked = false;
+  if (target.kind === 'm') { const D = findMinion(st, target.uid).m; if (D.atk > 0) { const c = hit(st, side, { kind: 'm', uid: A.uid }, D.atk); counter = c.dealt; counterBlocked = c.blocked; } }
+  A.ready = false;
+  const dead = cleanup(st);
+  return { dmg, full: A.atk, dealt: r.dealt, blocked: r.blocked, counter, counterBlocked, dead };
+}
+function resolveSpell(st, side, id, target, correct, rng) {
+  const c = CARDS[id], foe = other(side);
+  if (c.target === 'self') { const n = healHero(st, side, c.heal); return { healed: n, dead: cleanup(st) }; }
+  const dmg = damageFor(c.atk, correct, rng);
+  const hits = [];
+  if (c.target === 'enemy') hits.push({ target, ...hit(st, foe, target, dmg) });
+  else for (const m of st[foe].board.slice()) hits.push({ target: { kind: 'm', uid: m.uid }, ...hit(st, foe, { kind: 'm', uid: m.uid }, dmg) });
+  return { dmg, full: c.atk, hits, dead: cleanup(st) };
+}
+
+// ── 컴퓨터 상대: 끝낼 수 있으면 끝냄 → 카드 내기 → 유리한 교환 → 영웅 공격 ──
+function aiNextAction(st, side = 'e') {
+  const S = st[side], foe = st[other(side)];
+  // 1) 카드 내기 (비싼 카드부터)
+  const order = S.hand.map((id, i) => ({ id, i })).sort((a, b) => CARDS[b.id].cost - CARDS[a.id].cost);
+  for (const { id, i } of order) {
+    const c = CARDS[id]; if (!canPlay(st, side, i).ok) continue;
+    if (c.type === 'minion') return { type: 'play', idx: i };
+    if (c.target === 'self' && S.hero.hp <= S.hero.max - 50) return { type: 'spell', idx: i };
+    if (c.target === 'allEnemyMinions' && foe.board.length >= 2) return { type: 'spell', idx: i, target: null };
+    if (c.target === 'enemy') {
+      const killable = foe.board.filter(m => !m.shield && m.hp <= c.atk).sort((a, b) => b.atk - a.atk)[0];
+      return { type: 'spell', idx: i, target: killable ? { kind: 'm', uid: killable.uid } : { kind: 'hero' } };
+    }
+  }
+  // 2) 공격
+  const ready = S.board.filter(m => m.ready && m.atk > 0);
+  if (!ready.length) return { type: 'end' };
+  const targets = legalTargets(st, side);
+  const heroOk = targets.some(t => t.kind === 'hero');
+  const total = ready.reduce((s, m) => s + m.atk, 0);
+  const a = ready.sort((x, y) => y.atk - x.atk)[0];
+  if (heroOk && total >= foe.hero.hp) return { type: 'attack', uid: a.uid, target: { kind: 'hero' } };
+  const minionTargets = targets.filter(t => t.kind === 'm').map(t => findMinion(st, t.uid).m);
+  const good = minionTargets.filter(d => !d.shield && d.hp <= a.atk && d.atk < a.hp).sort((x, y) => y.atk - x.atk)[0];
+  if (good) return { type: 'attack', uid: a.uid, target: { kind: 'm', uid: good.uid } };
+  if (heroOk) return { type: 'attack', uid: a.uid, target: { kind: 'hero' } };
+  const t = minionTargets.sort((x, y) => x.hp - y.hp)[0];
+  return { type: 'attack', uid: a.uid, target: { kind: 'm', uid: t.uid } };
+}
+// ===ENGINE END===
+
+const ICONS = {"aries": ["M160.167 257.36H75.53C-26.474 176.527 26.283-13.776 164.023 52.574c43.01 20.716 71.747 65.968 90.757 120.75 19.006-54.782 47.74-100.034 90.754-120.75C483.274-13.772 536.03 176.526 434.03 257.36h-84.635s25.075-43.914 28.016-50.135c4.49-9.495 30.98-78.244-6.486-54.04-50.684 32.744-62.257 149.633-67.79 201.062-5.566 51.764-8.797 120.12-8.797 120.12H215.224s-3.23-68.356-8.79-120.12c-5.534-51.434-17.107-168.318-67.796-201.062-37.462-24.204-10.982 44.54-6.482 54.04 2.936 6.22 28.01 50.136 28.01 50.136z"], "taurus": ["M30.882 30.14S64.407 19.33 122.97 49.78C183.966 81.5 208.598 166.55 255.876 167.64c47.283-1.09 71.92-86.14 132.912-117.858 58.558-30.45 92.088-19.643 92.088-19.643v85.483s-38.062-2.453-58.934 13.507c-15.165 11.593-45.23 54.296-71.375 80.08 38.867 27.833 63.966 71.877 63.966 121.45 0 84.162-72.343 152.39-161.587 152.39-89.244 0-161.593-68.228-161.593-152.39 0-51.03 26.6-96.205 67.432-123.865-25.558-25.957-54.263-66.43-68.965-77.67-20.877-15.96-58.938-13.506-58.938-13.506V30.14zM179.45 330.49c0 40.01 32.98 72.44 73.664 72.44 40.684 0 73.67-32.435 73.67-72.44 0-40.004-32.98-72.44-73.67-72.44-40.688 0-73.664 32.436-73.664 72.44z"], "gemini": ["M40.222 392.1c23.715-6.93 47.498-12.842 71.872-17.062V134.755c-24.37-4.214-48.157-10.137-71.872-17.06V27.4c70.673 20.643 133.888 29.363 207.96 29.363 78.793 0 145.615-9.52 220.073-33.702v90.575c-26 8.44-51.744 15.286-78.683 20.18v242.157c26.934 4.89 52.69 11.736 78.683 20.18v90.575c-74.463-24.188-141.285-33.702-220.07-33.702-74.08 0-137.29 8.72-207.963 29.368V392.1zm207.96-28.18c9.728 0 29.432.16 38.915.473V145.396c-9.483.31-29.187.462-38.913.462-7.916 0-25.85-.104-33.62-.312v218.68c7.77-.197 25.704-.306 33.62-.306z"], "cancer": ["M35.16 145.506C75.983 78.28 175.26 30.66 285.294 30.66c73.18 0 138.768 17.16 198.437 60.093l.464 96.793c-80.92-61.71-181.865-90.673-278.885-53.71 17.84 19.422 28.756 45.353 28.756 73.833 0 60.293-48.87 109.168-109.16 109.168-60.288 0-109.158-48.875-109.158-109.17-.005-23.08 7.168-44.522 19.413-62.162zm89.45 83.374c12.396 0 22.445-10.054 22.445-22.455 0-12.402-10.05-22.456-22.445-22.456-12.396 0-22.456 10.053-22.456 22.455 0 12.4 10.065 22.455 22.456 22.455zm260.892 47.792c-12.402 0-22.45 10.054-22.45 22.456 0 12.4 10.048 22.45 22.45 22.45 12.4 0 22.45-10.05 22.45-22.45 0-12.402-10.054-22.456-22.45-22.456zm89.45 83.374c-40.822 67.226-140.098 114.846-250.13 114.846-73.183 0-138.766-17.16-198.436-60.092l-.463-96.788c80.916 61.704 181.865 90.668 278.88 53.715-17.847-19.428-28.758-45.36-28.758-73.838 0-60.29 48.87-109.16 109.16-109.16s109.164 48.87 109.164 109.16c.004 23.073-7.17 44.51-19.42 62.156z"], "leo": ["M168.817 305.907c12.462 0 22.567-10.1 22.567-22.566s-10.105-22.56-22.567-22.56-22.567 10.094-22.567 22.56c0 12.467 10.105 22.567 22.567 22.567zM59.85 283.487c0-59.368 47.824-107.56 107.046-108.155-1.167-8.847-1.714-18.013-1.443-27.63C170.835-40.66 463.57-1.64 419.316 179.118c-16.387 66.94-44.974 130.56-71.378 188.645-24.682 54.31 13.657 50.307 17.238 32.797l83.598 1.82c-3.044 139.3-258.61 110.427-176.962-69.216 26.777-58.917 48.966-116.556 66.282-173.938 19.813-65.64-130.754-90.223-76.484 49.75 7.782 20.08 14.543 44.747 14.427 69.036l.135 5.47c0 59.733-48.424 108.158-108.163 108.158-59.74 0-108.16-48.42-108.16-108.154z"], "virgo": ["M176.108 95.4c0-7.73-.975-15.69-4.336-22.874-2.69-4.525-6.29-4.78-9.157-3.12-3.684 2.13-8.016 8.446-8.016 20.61.63 82.52-1.568 171.5-2.794 253.63H70.74V95.395c0-22.24-9.21-41.34-37.85-41.452l-8.758-.04C42.254 33.26 60.295 24.386 89.435 24.386c18.78 0 36.332 7.443 48.47 20.104l1.965-1.78 2.314-1.983c17.45-13.458 37.45-16.335 52.62-16.335 18.747 0 36.268 7.415 48.402 20.04l1.897-1.718 2.305-1.982c17.46-13.458 37.452-16.336 52.624-16.336 34.38 0 64.434 24.884 65.096 60.787.372 19.93.336 46.43.094 75.296 7.926-22.432 23.416-50.88 51.044-50.88 22.807 0 68.417 1.143 68.417 140.26 0 100.9-52.43 158.528-88.714 186.742 4.672 1.804 9.595 2.547 14.594 2.547 25.09 0 45.615-20.526 45.615-20.526v28.514s-8.554 27.936-71.27 27.936c-18.69 0-33.924-3.012-46.37-8.334-38.643 12.317-85.332 19.165-85.332 19.165v-30.792s23.99-1.208 53.3-13.695c-19.102-25.98-23.054-63.213-24.934-97.764l-.228-8.275V95.4c0-7.73-.98-15.69-4.337-22.874-2.596-4.373-6.025-4.695-8.697-3.366-3.428 1.706-7.697 7.1-8.382 17.898.98 75.646-1.655 183.16-2.747 256.596h-81.066V95.4zm188.08 144.462l-.03 2.054-.144 8.463c-.613 36.676-1.27 70.48-1.607 93.27 0 22.467 1.978 39.966 5.41 53.482 24.867-28.925 43.893-72.226 43.893-137.014 0-184.137-46.103-65.27-47.522-20.256z"], "libra": ["M34.303 381.03h443.23v82.957H34.303V381.03zm258.44-66.852v-51.04c24.66-13.395 40.927-38.56 40.927-67.453 0-42.325-34.9-76.633-77.933-76.633-43.033 0-77.928 34.308-77.928 76.633 0 28.546 15.868 53.446 39.412 66.633v51.86l-.306 31.57H34.298v-82.95h66.225c-9.99-20.48-15.558-43.28-15.558-67.297 0-89.033 76.53-161.215 170.94-161.215s170.94 72.182 170.94 161.216c0 24.02-5.568 46.818-15.557 67.297h66.23v82.95H292.753l-.01-31.57z"], "scorpio": ["M372.366 466.713c-13.312 0-25.02-1.402-35.324-3.99-14.15-5.02-26.633-10.96-41.876-31.902-1.445-1.97-2.812-4.034-4.086-6.137l-.86-1.436c-14.137-24.323-17.38-56.392-19.015-86.38l-.215-7.95V98.292c0-7.428-.946-15.08-4.172-21.978-2.494-4.202-5.793-4.516-8.357-3.24-3.298 1.644-7.4 6.822-8.06 17.2.947 72.702-1.59 176.022-2.636 246.594H169.86V98.296c0-7.428-.938-15.08-4.168-21.978-2.585-4.35-6.043-4.595-8.805-3-3.535 2.048-7.703 8.117-7.703 19.808.61 79.303-1.5 164.812-2.684 243.74H68.6V98.3c0-21.373-8.852-39.73-36.375-39.837l-8.42-.033C41.222 38.587 58.55 30.06 86.564 30.06c18.047 0 34.916 7.15 46.576 19.317l1.894-1.712 2.215-1.905c16.768-12.93 35.994-15.695 50.566-15.695 18.022 0 34.86 7.127 46.52 19.256l1.824-1.65 2.215-1.906c16.783-12.93 35.996-15.694 50.58-15.694 33.037 0 61.923 23.91 62.555 58.412.163 8.843.25 19.037.267 30.172 0 62.654-2.787 237.685-.714 250.206l1.002 5.544c.52 2.576 1.07 5.028 1.673 7.38 9.78 37.704 23.914 46.357 49.574 45.798 11.458-1.032 21.664-5.28 29.604-9.802l-16.503-29.712 72.843 2.37-29.02 77.574c-.22-.87-6.215-11.94-13.716-25.587-6.774 8.882-25.53 24.288-74.154 24.288z"], "sagittarius": ["M267.934 459.625l-80.013-80.08-100.315 100.12-57.517-57.516 100.25-100.252c-60.47-60.56-77.15-77.326-79.827-80.078l57.52-57.522 79.95 79.952 128.03-128.028C178.14 101.764 209.1 109.4 204.28 108.128L223.96 29.2l203.814 50.813L477.8 283.637l-79.192 19.745-26.762-107.595-126.212 126.106 80.02 80.018-57.72 57.715z"], "capricorn": ["M222.733 125.562c-16.18-2.68-22.596 79.184-24.955 118.284l-67.715.1c-2.892-103.625-4.257-113.83-19.966-141.418-7.18-12.618-28.344-14.49-28.344-14.49 0-13.44-.135-68.432-.135-68.432 37.287 0 63.14 26.92 79.424 56.544l2.427-5.455c7.912-16.947 26.824-49.99 64.08-49.99 117.498 0 42.747 323.118 145.476 296.482 6.634-1.72 17.087-23.246-3.94-23.246-37.993 5.053-52.152 210.634-175.335 193.995-11.794-1.59-18.916-4.83-18.916-4.83l8.505-73.157c22.63 2.82 54.084-15.122 58.147-26.623 17.15-48.603 44.853-168.058 133.866-168.058 34.016 0 72.754 32.918 72.754 90.73 0 94.424-169.585 154.09-208.16-49.384-8.235-43.37-4.317-134.282-17.214-131.05z"], "aquarius": ["M301.313 68.906l-88.875 69.438-35.157-68.156-141.218 93.406v85.72l108.626-76.69 39.437 67 93.03-65.06 34.658 69.28 93.343-68.094 67.97 78.563 1.28-112.75L426.5 70.438 337.437 137l-36.125-68.094zm0 194.125l-88.875 69.44-35.157-68.126L36.063 357.72v85.717L144.69 366.75l39.437 67 93.03-65.063 34.658 69.282 93.343-68.064 67.97 78.53 1.28-112.748-47.906-71.094-89.063 66.53-36.125-68.093z"], "pisces": ["M281.02 221.26c6.9-79.494 40.052-148.655 87.93-192.533h87.745c-47.877 43.878-75.456 113.04-81.08 192.532h70.68v79.45h-69.05c8.383 73.184 36.106 136.262 81.49 176.83H370.99c-45.39-40.568-77.906-103.65-87.997-176.83h-57.89c-10.092 73.184-42.61 136.262-87.998 176.83h-87.74c45.383-40.568 73.097-103.65 81.49-176.83H56.066v-79.45h76.42C126.85 141.765 99.28 72.604 51.403 28.726h87.75c47.87 43.878 81.025 113.04 87.92 192.532h53.946z"], "owl": ["M70.574 17.27l-4.87 18.044c24.228 6.543 46.02 15.573 65.478 26.704-21.276 15.76-35.307 42.705-35.307 73.314 0 13.593 2.77 26.463 7.707 37.955-21.82 20.365-35.004 49.398-35.004 87.504 0 70.68 42.857 131.724 104.85 161.005l-30.71 70.36h20.376l27.594-63.216c3.01 1.077 6.05 2.09 9.13 3.02 3.56 2.76 7.186 5.25 10.868 7.487l-13.03 52.71h19.28l10.945-44.32c6.856 2.546 13.842 4.224 20.9 5.007v39.312h18.69V452.8c7.872-.906 15.65-2.936 23.255-6.056l11.212 45.412h19.25l-13.44-54.418c3.4-2.222 6.75-4.66 10.036-7.343 3.22-1.07 6.398-2.226 9.537-3.456l28.46 65.216h20.376l-31.8-72.863c59.226-30.165 99.74-89.782 99.74-158.502 0-37.114-12.51-65.62-33.32-85.897 5.383-11.896 8.435-25.327 8.435-39.56 0-30.5-13.928-57.36-35.073-73.144 19.638-11.334 41.452-20.41 65.396-26.876l-4.87-18.043c-26.26 7.092-50.213 17.245-71.75 30-34.084-18.84-77.19-28.164-120.214-28.114-40.908.048-81.73 8.575-114.655 25.448-20.227-11.394-42.7-20.644-67.47-27.333zM252.707 38.67c36.446-.044 72.955 6.705 102.084 20.348-45.112 31.892-77.918 76.2-97.15 127.79C238.314 134.672 205 88.95 157.073 56.388c27.807-11.744 61.69-17.68 95.635-17.722zm-83.605 68.373c19.4 0 35.33 15.923 35.33 35.32 0 19.4-15.93 35.324-35.33 35.324S133.77 161.76 133.77 142.36c0-19.398 15.932-35.32 35.332-35.32zm179.44 0c19.4 0 35.33 15.923 35.33 35.32 0 19.4-15.93 35.324-35.33 35.324-19.402 0-35.333-15.923-35.333-35.323 0-19.398 15.93-35.32 35.33-35.32zm-110.378 80.69c4.052 10.347 7.523 21 10.424 31.913l9.03 33.964 9.03-33.964c2.895-10.888 6.368-21.472 10.405-31.72 14.39 21.47 37.346 35.386 63.236 35.386 14.44 0 27.964-4.346 39.608-11.896-4.003 70.85-18.94 124.726-39.34 161.416-23.964 43.104-54.35 62.274-83.537 61.836-29.184-.438-59.806-20.672-83.803-64.074-20.432-36.954-35.36-90.513-39.354-160.03C145.8 218.65 159.81 223.31 174.8 223.31c25.967 0 48.984-14 63.364-35.58zm-125.266 2.147c.433.61.864 1.22 1.31 1.816 2.165 81.335 18.39 144.056 42.653 187.942 3.655 6.61 7.513 12.784 11.538 18.55-48.72-28.262-81.132-79.294-81.132-137.394 0-32.026 9.226-54.484 25.632-70.913zm288.282 1.428c15.53 16.296 24.226 38.38 24.226 69.486 0 56.37-30.516 106.083-76.828 134.804 2.87-4.334 5.65-8.887 8.315-13.682 24.163-43.46 40.328-106.15 42.628-188.473.56-.707 1.122-1.41 1.66-2.135zm-237.496 59.052c-3.753 6.263-6.096 14.53-6.096 23.24 0 20.065 12.095 35.915 26.82 35.915 12.53 0 23.354-11.585 26.21-27.465-4.692 4.098-10.472 6.34-16.456 6.34-15.98 0-29.423-16.616-30.478-38.03zm185.912 2.477c-1.056 21.413-14.496 38.03-30.477 38.03-5.985 0-11.763-2.242-16.458-6.34 2.858 15.88 13.68 27.466 26.21 27.466 14.726 0 26.21-15.85 26.21-35.916 0-8.71-1.732-16.977-5.484-23.24h-.002zm-68.73 28.97c-3.51 13.094-14.307 23.18-24.53 23.18-9.984 0-20.61-10.057-23.943-22.507-.813 3.397-1.752 7.03-1.752 10.796 0 19.225 11.59 34.41 25.698 34.41s25.697-15.185 25.697-34.41c0-3.986-.26-7.9-1.168-11.47h-.002zm35.04 66.706c-3.435 16.552-14.208 29.013-27.45 29.013-8.24 0-15.752-4.6-21.024-12.146.738 18.326 12.065 33.062 25.697 33.062 14.107 0 25.696-15.862 25.696-35.086 0-5.407-1.303-10.277-2.92-14.844zm-115.636 1.347c-1.294 4.168-1.752 8.69-1.752 13.497 0 19.224 11.59 35.085 25.697 35.085 13.633 0 24.375-14.737 25.113-33.063-5.272 7.545-12.784 12.146-21.025 12.146-12.916 0-24.314-11.735-28.032-27.666z"], "spartan": ["M253.714 20.358c-8.79.075-17.448.82-25.89 2.308-46.55 8.208-89.423 26.157-121.225 52.065-31.803 25.908-52.572 59.39-56.316 100.053l-.004.04-.004.04c-8.45 83.885 39.397 152.37 65.604 181.553 5.21 5.804 7.064 13.574 6.533 20.862-.53 7.288-3.04 14.494-6.598 21.838-7.114 14.688-18.703 30.06-31.03 44.457-13.957 16.303-27.375 29.703-37.75 39.627 7.203-1.214 14.764-4.37 22.67-9.368 14.66-9.265 29.554-24.475 42.097-41.298 12.543-16.824 22.807-35.28 28.802-50.586 2.998-7.654 4.912-14.54 5.614-19.72.7-5.178-.177-8.39-.354-8.687-15.34-25.73-31.257-52.027-40.687-79.112-9.43-27.085-12.2-55.565-.073-83.35 25.223-57.79 78.02-85.085 130.772-89.605 52.61-4.508 105.963 12.396 136.545 44.71l23.292 22.474 69.254-41.47c-20.34-26.314-55.49-55.33-96.24-76.257-33.546-17.226-70.702-28.978-106.18-30.428-2.957-.12-5.902-.17-8.832-.144zM372.42 146.184l-.058-.057.31.313c-.083-.087-.17-.17-.25-.256zM244.814 118.95c-2.468.102-4.935.245-7.4.457-3.562.305-7.11.73-10.64 1.255l9.628 45.077c5.76-1.637 11.657-2.823 17.646-3.564l-9.233-43.226zm43.85 3.658c-4.866 12.845-7.33 25.916-6.978 39.04 6.034.48 12.086 1.335 18.12 2.557-.868-12.19 1.306-24.43 6.362-36.98-5.66-1.82-11.515-3.363-17.504-4.617zm-106.672 11.79c-6.112 3.028-12 6.54-17.612 10.532 17.55 8.862 29.7 22.763 34.715 39.594 4.936-3.84 10.145-7.183 15.564-10.063-6.122-16.257-17.577-30.086-32.666-40.063zm88.136 44.796c-1.156-.002-2.308.014-3.457.047-2.675.076-5.328.242-7.952.502-41.993 4.176-77.31 30.258-87.475 90.07-2.198 12.94 4.293 42.822 12.246 67.66 7.952 24.836 16.634 45.517 16.634 45.517l.504 1.198.143 1.295c1.96 17.7-9.11 34.967-21.212 52.26-8.036 11.486-16.43 22.104-23.97 31.72 24-1.35 45.963-11.985 67.177-30.947-.124-.5-.17-.71-.313-1.297-.866-3.594-1.955-8.697-1.687-14.68.446-9.983 5.674-21.958 18.818-31.868-24.577-35.02-28.898-78.757-24.06-115.027l.886-6.65 6.626-1.05c58.715-9.29 97.246-28.81 139.34-54.593-27.566-21.88-61.198-34.115-92.25-34.158zm120.197 37.84c-48.424 30.517-91.56 55.67-157.556 67.35-3.253 33.408 2.427 71.84 25.226 100.798 12.607.61 23.264 6.977 29.904 16.184 6.747 9.353 9.946 21.162 10.83 33.628 23.288 21.426 62.97 39.024 97.764 56.655-3.17-39.444-.296-76.34-14.538-114.11l-62.842-25.3-.062-.027c-14.313-6.018-23.332-13.792-26.512-24.03-3.18-10.236-.874-19.966 1.188-31.064l2.2-11.852 10.74 5.476c23.407 11.94 51.394 20.52 77.548 20.065l6.582-.116 2.103 6.238c10.593 31.436 12.912 56.612 15.752 82.203l7.787 3.113c4.126-29.38 1.912-68.686-3.862-104.425-5.463-33.817-14.72-65.03-22.252-80.788zM223.397 441.148c-.01.444.094.455.01.04-.002-.008-.01-.033-.01-.04z"], "pegasus": ["M329.2 317.16c-3 82.09-78.09 146-78.09 146L192 439.73c-27.57-11-37.86-28.56-50.31-55.49l-.06-.12 94.49 27.2-57.73-27.64c-41.53-19.88-58.87-47.12-76.76-89.55l134.47 52-126.2-76.23c-28.67-17.32-37.15-36.68-51.25-67.06l161.16 68.74-79-51.51C55.6 166.5 47.95 135.26 18.88 72.57l181 113.86c51.5 32.38 131.55 69.93 129.32 130.73zM493.12 216.5c0 6.87-17.51 20.85-20.35 20.62-3.7-.31-46.27-27.85-61.93-35.68-15-7.49-59.39 1.27-64.19-42.81-11 28 10.77 90.21 27.84 120.18 35.42 62.17-25.71 146.59-101.8 186A304.54 304.54 0 0 0 302 430.4a252.08 252.08 0 0 0 28.5-49.52c9-21.2 14-42.44 14.73-63.13a85.52 85.52 0 0 0-10.78-44.35c-6.49-12-15.74-23.4-28.28-34.93-21.84-20.09-50-36.91-74.92-51.74l-1.16-.69c-5.83-11-8.63-21.26-4.81-29.76 26.71-59.41 100.93-93.52 166.18-86.86 21.2-25.48 41.89-22.08 41.89-22.08l-11.9 25.33s20-11.19 23.11-7.29l-16.48 30.7L442 114.61s51.12 95.57 51.12 101.89zm-73.8-99.92a9.47 9.47 0 1 0-9.47 9.47 9.47 9.47 0 0 0 9.48-9.48z"], "centaur": ["M372.2 20.34c-21.4 1.16-30 25.84-29.7 42.79.3 18.28 10.2 43.97 29.7 42.87 21.4-1.2 30-25.94 29.7-42.87-.3-18.29-10.2-43.85-29.7-42.79zM175.3 72.73c-36.6 49.47-17.2 102.67 7.3 146.47l53.6-71.3c24.1 22.7 51.8 37.3 56.4 36.8 10-.9 29.9-16.4 42.8-35-5.6 22.9-9.2 46.2-21 63.9 9.3 36.5 48.2 85 85.4 64 10.3-38.2 12.3-89.7 6.7-127.6 29.6 14.8 43.7 46.1 49.3 72.4 2.4 11.9 31.4 19.7 22.1-14.6-10.8-39.7-31.1-84.1-73.6-99.6-8.2 9.5-19.5 16.8-32.1 15.8-16.3-1.4-30.2-10.4-37.3-22.8-11.9 7.1-36.6 41.1-45.7 55.5-14.5-11.2-24.2-20.9-35.3-32.4l60.3-80.27c-58.2-19.69-112.6-2.46-138.9 28.7zm107.4-16.67L241.4 111c-22.3-10.8-32.5 6.8-17.8 23.8L185 186c-18.4-34.8-15.1-75.7 4.7-102.33 27.2-30.02 57.5-32.98 93-27.61zm14.4 162.84c-51.3 11.4-105.7 15.9-151.3 28.6-27.5 7.7-35.1 30.8-41 54.5-11.28 61.7-24.24 105.4-40.5 166.3 8.4 6.9 17 13.6 20.31 23.3H108c-2.5-15.4-8.32-19.5-15.98-30.7L118.1 398c27.7-6.5 45.2-26 60.3-45.8 38 23.8 82.1 9.4 126.5-7.2 9.5 42-9.7 77.3-20.4 111.6 8.3 12.9 21.7 22.4 27.9 35h28.2c-5.6-16.9-11.9-21.5-23.4-31.7 20.1-41.4 28.2-84.3 33.7-124.4 22-8 32.9-16.9 41.2-35.9-52.5 8.7-85.3-50.5-95-80.7zM99.19 265c-12.02-.2-27.04 3.5-28.49 15.8-4.1 34.8-3.85 71.5-38.44 85 8.4 14 21.75 24.1 37.47 15.3 12.85-39.9 11.04-81.5 29.46-116.1zM392 335.7c-6.3 6.7-14.8 11.9-25 14.8 0 .1-.1.2-.1.3l15.4 17.2-8.7 25.6-14.5 3.2c-1.7 8.1-3.7 16.3-6 24.3 34.2 7.7 55.7-31.4 60.2-54.9-5.4-12-12.4-23.2-21.3-30.5zm-210.9 42.6c-5.4 6.8-12.1 14.5-20.2 21.2 16.3 31.4 34.6 62.9 57.5 92.2h26.7c-28.9-35.6-47.8-75.2-64-113.4z"], "minotaur": ["M110 18.906c-3.766 9.014-2.938 15.91-2.938 28.032 0 26.995 24.076 48.413 52.563 52.562 19.28 2.807 39.315 4.758 59.594 5.813-8.56 7.39-13.907 18.092-13.907 35.124 0 17.576 6.436 37.856 16.562 52.97 10.126 15.112 23.233 24.374 36.03 24.374 12.8 0 25.906-9.26 36.033-24.374 10.126-15.113 16.562-35.392 16.562-52.97 0-17.186-5.43-27.946-14.125-35.342 19.053-1.09 37.854-2.952 56-5.594 28.487-4.147 51.47-23.72 52.563-52.563.368-9.723-1.637-18.74-2.938-28.03-2.943 27.71-26.205 45.69-54.313 49.656-59.833 8.443-123.54 8.443-183.375 0-28.107-3.966-51.37-21.945-54.312-49.657zm79.78 99.313c-248.928 7.213-200.628 194.293-22.124 242.5 40.812-39.456-6.55-101.937-43.72-57.033-23.22-43.474-20.674-82.77 4.5-95.03 48.72 27.067 83.566 88.52 86.126 148.405-33.595 23.148-59.625 63.032-59.625 63.032l26.344 38.78-41.31 23.5h82.124c-40.513-40.52-11.77-86.093 36.22-86.093 48.645 0 74.12 48.22 36.248 86.095h81.282l-40.47-23.5 26.345-38.78s-26.458-40.502-60.44-63.564c2.744-59.716 37.52-120.887 86.095-147.874 25.176 12.262 27.722 51.557 4.5 95.03-37.168-44.903-84.53 17.578-43.72 57.033 178.5-48.206 226.788-235.28-22.124-242.5 2.054 6.73 3.158 14.17 3.158 22.218 0 21.95-7.423 45.024-19.72 63.375-12.295 18.35-30.17 32.656-51.562 32.656-21.392 0-39.266-14.306-51.562-32.657-12.296-18.352-19.72-41.426-19.72-63.375 0-8.048 1.105-15.488 3.157-22.22z"], "medusa": ["M345.922 16.967c-2.945-.022-5.77.279-8.338 1.013-7.587 2.17-17 13.01-21.113 18.131-22.457 9.431-55.087 27.244-58.729 48.803.394 24.83 22.189 35.14 39.953 44.87 32.078 20.146-37.65 54.81-59.11 67.853 5.133 4.488 10.265 8.869 16.05 13.037 23.731-11.939 74.082-27.939 85.847-51.022 1.935-5.5 1.887-11.441.088-16.453-1.798-5.011-4.99-9.014-8.607-12.426-12.665-12.97-61.183-29.337-56.33-43.894 7.136-21.406 32.22-28.468 51.832-35.676 18.628 3.595 43.842 4.083 47.691-3.994 2.16-4.53-25.97 2.068-28.619-7.42-1.168-4.182 42.489-8.82 33.012-13.615-5.88-2.975-20.867-9.112-33.627-9.207zm-153.62 1.463c-2.156.036-4.091.644-5.657 2.047-5.437 5.05-1.09 19.31 5.63 31.046l8.96-6.66-1.6 17.25c4.048 4.62 10.373 7.522 15.258 9.332 7.144 14.57-15.497 23.577-24.143 30.403-6.498-45.04-87.24-35.653-84.393 1.666C94.211 99.512 84.63 87.922 78.33 79.74c-.075-9.696-.993-29.066-6.95-36.865-4.447-5.653-45.385-31.567-50.32-21.281-3.597 7.499 21.843 36.574 32.442 53.777 16.404 23.325 28.135 43.933 54.64 47.604 2.082 16.782 41.596 86.588 66.434 84.287 14.03-2.811 37.2-15.343 47.883-22.31-41.108-11.878-76.999-19.443-94.207-58.507 16.152 1.757 38.07.685 50.687-7.232-7.627 35.882 47.746 53.73 62.356 53.129 17.414-.717 27.352-14.806 19.98-19.088-18.43-7.2-63.853-9.431-62.826-28.512 4.304-23.946 47.48-22.578 35.155-56.416-.522-7.337-1.81-18.054-5.03-25.787L211.76 38.23l9.037-6.029c-5.639-3.336-19.147-13.928-28.494-13.771zm149.327 4.627l15.629 5.447-19.254 3.824zM449.96 34.885c-8.267-.127-17.869 5.295-23.315 8.513l6.848 8.834-17.3-1.25c-3.273 2.883-5.628 7.14-7.104 10.534a337.355 337.355 0 0 0-13.047 9.289c-14.571 10.934-30.966 24.468-38.57 40.088-6.798 13.962-3.662 28.519-1.776 40.79 1.886 12.272 2.6 21.795-1.527 28.104-41.598 10.981-51.047 42.402-6.854 25.512 7.98-3.22 16.512-7.399 21.916-15.66 8.644-13.215 6.182-28.145 4.254-40.69-1.928-12.544-3.246-23.166.168-30.18 4.522-9.288 19.28-23.093 32.916-33.36 6.746-.435 20.503-1.79 29.803-5.888l3.967-16.9 6.213 8.914c8.957-10.66 16.641-28.583 11.025-34.387-2.255-1.562-4.862-2.221-7.617-2.263zM47.99 38.363l15.187 6.578-3.614 9.278zM148.892 87.6c11.892-.085 23.7 3.948 24.363 9.316-1.383 15.602-40.723 12.754-49.024 10.88-2.404-14.717 11.183-20.1 24.66-20.196zm309.66 8.197c-3.3-.016-6.625.538-9.946 1.45-6.902 1.92-13.465 5.271-19.435 8.853-6.048-.753-11.845-.806-15.824.683-17.917 6.707-40.443 36.616-34.953 41.992 23.826 9.676 75.718-38.747 83.166-34.388 25.456 34.856-50.678 37.998-58.805 46.15-14.596 12.147 2.496 52.662-9.201 57.938-31.143 14.045-77.075 6.924-106.78-2.961a187.402 187.402 0 0 1-12.982 6.552c31.862 11.918 55.431 17.583 86.184 19.797 15.81 1.087 34.52 1.651 47.275-9.69 17.289-13.975.876-48.301 10.355-56.57 15.627-13.63 44.955-6.588 56.96-23.08 5.202-7.877 9.517-16.41 9.398-26.378-.12-9.969-3.21-20.985-12.865-27.02-4.1-2.348-8.304-3.308-12.547-3.328zm-45.606 19.435l7.832 6.147-18.529 6.482zM73.857 120a20.14 20.14 0 0 0-2.336.12c-16.049 1.744-29.144 19.933-34.914 34.374-4.168 3.432-8.337 7.367-11.273 11.334l4.953 16.635-9.82-4.65c-2.478 13.7-.242 33.073 7.515 35.32 7.128 2.064 17.12-8.998 23.729-20.797l-10.32-4.26 15.615-7.5c2.336-8.02.447-17.507-1.402-24.646 3.195-5.065 7.622-18.901 14.908-17.842 20.844 3.03 19.535 55.045 24.29 72.445 3.366 11.516 12.706 29.426 24.854 32.99 42.178 12.376 78.88-12.88 114.998-25.699-4.722-3.85-8.433-7.083-12.658-10.795-28.525 7.158-65.186 30.003-92.543 16.27-5.359-3.38-14.622-8.395-17.375-17.815-6.468-22.11-5.037-46.233-13.879-65.963-4.312-9.344-12.858-19.43-24.342-19.521zm401.293 66.475c-.297 0-.686.122-1.176.379-6.702 4.567-24.26 18.901-27.446 32.787-1.6 6.978 2.303 18.628 4.91 25.289-2.504 11.617-12.835 46.004-22.19 46.554-20.892 1.23-31.1-41.082-51.59-44.125-22.223-3.3-25.882 9.389-21.67 22.922 2.628 8.442 16.242-6.331 19.303-5.08 21.607 8.836 21.448 31.273 37.83 41.809-14.835-1.976-28.117-2.762-41.3-.211-29.945-51.308-61.564-40.198-34.919 2.994 2.113 3.425 8.927 5.073 13.053 6.732-5.662 4.965-9.78 12.2-9.54 20.502 1.752 13.756 14.946 19.78 26.212 21.498 12.364 1.592 27.146-1.726 31.576-12.58 2.007-5.26 1.712-11.147-.215-15.902-1.018-2.513-2.417-4.731-4.021-6.78 11.344.416 22.845 2.55 29.79 5.594 18.187 15.095 26.115 35.115 32.893 57.467-2.415 5.33-7.192 10.766-9.423 15.846l8.646 15.06-10.625-2.27c.736 13.905 7.36 32.246 15.426 32.651 7.41.373 14.594-12.69 18.316-25.691l-11.021-1.775 13.476-10.887c.468-7.153-2.613-14.755-5.297-20.295-8.872-27.896-23.127-67.98-47.77-77.66 26.13-2.356 38.815-46.422 41.438-65.86l.232-.066c12.35-14.561 25.533-37.11 20.223-44.518-2.925-4.079-10.735 23.738-20.323 21.475-6.25-8.543 9.657-35.865 5.202-35.86zm-9.905 21.021l-5.95 18.707-6.366-7.652zM52.93 226.662c-4.043.001-7.96.752-11.518 2.438-13.257 6.723-17.751 22.368-16.277 37.673 1.474 15.306 9.066 31.845 23.76 43.663 39.993 27.061 95.958 16.622 121.667-15.323 4.767 33.08-29.298 68.178-57.644 67.38-29.214-.824-64.83-44.993-84.986-23.077C12.86 355.802 29.9 380.6 39.66 394.463c2.968 12.326 2.194 20.675 10.26 29.467 10.1 10.047 32.596 12.806 40.701 13.095 10.615.38-25.369-24.77-22.326-27.867 6.903-7.028 28.344 12.34 28.642 7.33.511-8.575-20.044-19.76-37.658-25.818-4.369-6.808-23.714-32.81-18.277-38.883 8.786-6.433 50.577 31.06 74.031 29.625 26.543-2.397 49.61-17.964 63.446-39.857 3.112-6.337 9.174-21.39 9.43-38.295.446-29.55.398-45.248-24.464-38.178-16.036 4.56-19.645 35.787-53.3 41.578-23.613 3.666-39.378-1.73-49.971-10.25-10.594-8.52-16.104-20.778-17.123-31.361-1.02-10.583 2.604-17.919 6.504-19.897 1.413-.717 3.193-1.157 5.86-.763 14.893 27.609 54.597 49.416 60.624 46.148 6.755-3.662-6.693-38.607-22.08-49.974-3.41-2.52-8.984-4.06-14.992-4.997-7.637-5.28-17.143-8.906-26.037-8.904zm199.674 3.865c-18.923 6.785-32.457 11.475-48.497 17.744 8.745 9.341 20.501 17.216 35.893 23.729-14.27-2.49-27.915 6.555-34.77-7.146 2.043 13.638 1.89 27.52.583 40.246-1.835 17.842-5.592 32.988-10.57 43.246 14.131 20.597 40.022 38.217 60.757 38.656 22.618.518 61.109-28.689 71.59-60.176-7.528-5.477-14.792-12.353-17.531-19.94-2.573-7.488-1.95-14.953-.479-21.716 2.429-11.168 6.86-21.482 8.54-30.863a293.588 293.588 0 0 1-7.882-1.639c-.954 5.92-2.872 13.433-6.656 16.5C295.371 275.823 272 272 272 272c13.648-5.775 24.431-12.624 32.799-20.613-22.826-5.62-39.204-12.938-52.195-20.86zM92.024 248.8l6.82 15.08-16.04-11.32zM240 288c16 4.47 16 4.55 32 0l-16 16zm-32 32s9.351 4.796 20.568 9.137L240 352v-18.92c5.778 1.72 11.418 2.92 16 2.92 4.582 0 10.222-1.2 16-2.92V352l11.432-22.863C294.649 324.796 304 320 304 320l-32 48c-16-7.83-16-7.788-32 0zm160.584 5.9c.317.001.618.04.9.118 5.331 1.467 16.452 9.631 11.903 13.513-5.898 5.034-17.745 1.438-22.979-3.183-2.669-2.357 5.427-10.469 10.176-10.448zm-34.711 28.993c-3.358 5.538-6.772 10.445-10.56 15.097 4.642 2.326 8.366 4.029 11.359 7.881-11.412 24.935-61.757 20.266-49.346 49.934 6.319 12.108 16.302 15.926 28.606 14.353 20.356-2.24 69.464-33.392 80.011-19.336 4.75 6.33-.26 16.706-2.78 24.58-18.205 5.738-41.337 17.764-40.796 26.854.298 5.01 21.737-14.356 28.64-7.328 3.043 3.097-32.94 28.246-22.325 27.867 8.105-.29 30.603-3.049 40.703-13.096 5.172-5.145 8.1-17.452 9.41-24.412 4.843-14.346 10.924-35.626-.08-47.144-9.072-9.138-22.03-9.728-33.496-7.346-21.18 1.212-53.863 27.054-68.479 21.146-10.43-5.673 29.958-21.229 37.06-25.933 6.637-4.766 13.029-12.668 11.995-22.5-3.113-10.074-11.909-16.986-19.922-20.617zm-148.277 11.146c-7.804 24.91-7.598 36.43-31.38 35.402-23.159-1-45.17 14.215-45.31 37.832 3.64 38.338 55.968 37.41 79.076 31.586 8.037-2.546 20.788 3.721 30.836 2.221 18.846-3.287 46.502-28.528 42.098-34.824-3.97-5.676-50.143-3.842-75.66 14.719-13.752 1.276-61.539 5.078-58.354-13.961 5.052-30.196 42.66-14.06 57.639-27.815 7.804-7.542 12.53-18.01 15.738-28.986-5.308-4.79-10.225-10.218-14.683-16.174zM58.21 414.053L73.223 426.7l-16.315-2.78zm175.402 40.36L220.77 464.85l-6.563-7.485zm155.479 17.407l1.304 9.87-16.316 2.78z"], "lion": ["M123.885 20.447c-10.348.467-21.337 3.146-32.194 5.366l62.492 65.628-21.645.188c-29.376.187-75.695 6.154-103.555 22.303l31.756 51.576-40.625 21.098v56.577l46.54 26.32-46.54 40.076v32.268c28.217-1.233 60.63.636 89.135-8.907l31.902-10.658-21.828 25.586c-18.76 22-29.782 55.133-50.736 87.713 31.91-2.394 63.352-7.65 96.8-25.81l16.026-8.683-9.746 77.124c26.333-12.19 52.103-28.923 71.178-49.055 22.683-23.94 35.713-50.49 33.36-72.71l-.074-.75c-18.488-12.687-32.26-31.173-39.236-54.18-8.414-27.753-5.867-62.33 6.643-101.145-26.406-4.04-46.536-14.637-57.307-30.11-12.33-17.716-14.222-39.26-7.738-57.018 6.483-17.758 22.29-32.165 43.437-33.4 20.558-1.195 44.48 10.033 69.972 36.102 11.368 4.11 21.73 8.034 31.14 11.94 2.434-21.395-1.46-38.033-10.408-52.9-8.41-13.975-23.217-26.43-41.1-38.582l4.27 42.888-16.425-10.985C222.37 43.57 168.973 18.49 123.885 20.597l.002-.225zm100.387 77.997c-.436.008-.866 0-1.29 0h-.002c-13.54.785-22.545 9.105-26.937 21.135-4.393 12.03-3.243 27.353 5.51 39.93 8.755 12.576 25.128 23.158 53.548 24.784l12.595.69-4.344 11.827c-14.837 40.46-16.242 73.928-8.577 99.212 7.66 25.267 24.04 42.795 47.305 52.56h.037l108.59 38.474c5.65-11.9 11.672-23.813 17.988-35.71-4.997 2.188-10.513 3.41-16.32 3.41-22.52 0-40.78-18.262-40.78-40.782 0-22.518 18.26-40.78 40.78-40.78 20.66 0 37.697 15.373 40.373 35.3 10.666-18.062 21.885-36 33.48-53.683l-103.224-52.377-4.746-5.732c-3.93-13.556-11.515-23.32-26.39-33.324-14.876-10.002-37.034-19.57-67.784-30.623l-2.08-.767-1.53-1.607c-23.283-24.532-42.7-32.278-56.202-32.024zm119.04 89.93c8.272 0 14.657 6.387 14.657 14.657 0 8.274-6.387 14.688-14.658 14.688-8.27 0-14.687-6.414-14.687-14.687 0-8.27 6.416-14.655 14.687-14.655z"], "hydra": ["M345.594 20.28c-11.443.087-23.37 1.194-36.094 3.845 33.485 7.004 54.532 21.844 65.844 39.22-15.476-2.647-30.64-4.472-45.47-5.532L311 40.374l-19.28 16.438c-7.537.167-14.98.55-22.314 1.156L239.97 41.78l-14.907 22.814c-8.1 1.775-16.05 3.846-23.844 6.22l-29.47-14.97-11.313 30.75c-8.783 4.197-17.31 8.868-25.593 13.937l-32.688-5.31-.47 29.03c-6.313 5.248-12.44 10.808-18.374 16.656H48l3.563 36.656c-4.38 5.908-8.603 12.045-12.688 18.375L18.47 192.25v39.5c-.012.02-.022.042-.032.063V493.28h18.5c23.523-92.965 94.565-130.4 168.968-85.25 42.127 25.566 93.783 62.296 149.063 41.158-.9 7.955-3.276 15.623-6.908 22.562l95.344 19.188c2.99-7.75 5.584-15.712 7.625-23.563-3.557 2.29-10.352 4.79-19.78 3.313-41.302-6.47-33.15-54.034-.53-58.407 10.915-1.456 21.15 3.22 27.56 11.25l18.283-38.874c-68.1 6.078-129.61-30.834-197.47-16.687 35.468 7.415 56.983 23.64 67.75 42.342-7.332.564-14.425.598-21.28.157l-10.813-10.25-13.625 6.436c-5.98-1.52-11.737-3.448-17.313-5.75l-7.718-15.47-10.906 5.97c-7.152-4.38-13.924-9.414-20.344-15.062l-1.813-26.75-19.436 5.03c-7.508-7.63-15.15-13.68-22.875-18.343l-1.282-19.75-23.875 9.408c-11.712-2.7-23.455-2.622-35.063-.25 44.223-90.392 134.06-92.4 180.813-64.563-5.227 5.68-11.388 10.355-18.125 13.78l66.562 70.908c6.928-4.58 13.63-9.564 19.844-14.782-4.228-.204-14.15-5.01-17.47-8.06-34.53-31.74 7.1-63.854 32.876-48.626 9.484 5.603 15.366 14.898 15.938 25.156l34.75-23.875c-59.015-34.522-85.098-97.445-148.594-125.25 23.092 24.968 31.707 49.115 30.97 69.75-8.93-6.752-18.606-12.1-28.845-16.188l-13.845-21.25-18.188 12.75c-5.18-.755-10.455-1.246-15.78-1.5l-19.094-18.093-15.25 19.687c-7.918 1.068-15.884 2.592-23.844 4.564l-15.75-13-9.75 20.812c-6.988 2.552-13.936 5.42-20.782 8.594l-23.594-8.28-8.625 25.874c-12.263 7.768-23.966 16.49-34.876 26.062C124.307 122.443 296.518 88.99 384.938 108.562c-1.12 6.798-3.333 13.35-6.47 19.344l95.344 19.188c2.99-7.75 5.585-15.71 7.625-23.563-3.558 2.29-7.502 5.33-11.968 4.72-46.308-6.31-43.81-54.725-8.345-59.813 10.903-1.57 21.15 3.193 27.563 11.22 1-10.184 1.808-35.654 2.187-45.907-55.332 4.938-95.695-13.84-145.28-13.47z"], "bolt": ["M19.594 18.125V104.5l210.094 181.78-84.97 178.22 230.938-92.188-39.875 117.032 94.47-35.813 67.594 44.533-34.594-106.344-59.75 27.5 76.75-168.25-198.03 99.093 76.5-122.75L238.186 18.125H121.813L312.406 244.72 218.47 393.75l58.28-142.813L43.72 18.125H19.593z"], "lyre": ["M108.656 35.063c-15.053.138-33.413 5.378-46.97 15.812-10.75 8.276-18.777 19.27-21.186 34.438.21-.126.414-.252.625-.376-.843 2.816-1.313 5.786-1.313 8.876 0 17.087 13.85 30.937 30.938 30.937 14.293 0 26.324-9.705 29.875-22.875.028-.115.067-.23.094-.344.48-2.082.768-4.042.905-5.843.025-.327.017-.65.03-.968.005-.126.03-.25.032-.376.007-.182-.002-.353 0-.53 0-1.526-.098-3.036-.312-4.5-1.367-8.018-6.778-12.156-12.594-13.72-8.527-2.293-19.055.637-23.75 18.156l-.468-.125C62.04 74.12 72.213 63.885 83.94 60.78c2.476-.654 5.053-1.005 7.656-.968 9.072.13 18.445 4.88 24.562 17.126.087.173.165.355.25.53 5.208 15.233 2.11 43.32-3.344 57.626-7.288 18.753-22.376 40.504-47.687 65.5C6.99 258.252 4 329.824 39.97 388.814 75.936 447.8 152.13 493.56 254.437 493.56c102.306 0 178.47-45.76 214.437-104.75 35.882-58.848 32.982-130.225-25-187.812l-.406-.406h-.033c-25.31-24.996-40.367-46.747-47.656-65.5-5.23-16.453-9.09-42.988-2.655-57.625.058-.128.128-.25.188-.376.025-.05.037-.106.062-.156 6.117-12.246 15.49-16.996 24.563-17.126 2.602-.037 5.18.314 7.656.97 11.724 3.102 21.87 13.337 19.344 32.843l-.438.125c-4.694-17.52-15.222-20.45-23.75-18.156-4.41 1.185-8.603 3.85-10.97 8.562-.012.04-.017.085-.03.125-.975 3.007-1.5 6.203-1.5 9.532 0 17.088 13.85 30.938 30.938 30.938 17.087 0 30.937-13.85 30.937-30.938 0-4.355-.907-8.49-2.53-12.25-3.058-13.244-10.598-23.112-20.44-30.687-14.458-11.13-34.39-16.363-49.936-15.78-13.378.5-24.85 4.108-33.22 10.53-3.412 2.617-6.383 5.702-8.844 9.375-69.455 35.508-138.89 38.75-208.344-7.75-.642-.557-1.29-1.105-1.968-1.625-8.37-6.422-19.843-10.03-33.22-10.53-.97-.037-1.964-.042-2.968-.032zm52.78 53.124c6.338 2.648 12.666 4.987 19 7.032v313.06c-30.732-8.258-57.886-22.005-77.374-41.31-17.1-16.94-28.077-38.626-28.906-63.595-.828-24.97 8.274-52.702 28.97-82.625 41.323-59.752 57.163-103.6 58.31-132.563zm186.033 1.407c1.6 28.97 17.593 72.37 58.25 131.156 20.693 29.923 29.796 57.656 28.967 82.625-.828 24.97-11.807 46.654-28.906 63.594-19.023 18.846-45.374 32.4-75.217 40.717V94.844c5.636-1.606 11.27-3.35 16.906-5.25zm-35.595 10v312.53c-8.21 1.63-16.606 2.878-25.125 3.782V104.094c8.376-1.122 16.75-2.63 25.125-4.5zm-112.75.78c8.45 1.97 16.894 3.442 25.344 4.44v311.342c-8.59-.84-17.057-2.05-25.345-3.625V100.376zm68.938 5.564v311.375c-4.54.198-9.088.312-13.657.312-3.76 0-7.506-.053-11.25-.188V106.28c8.293.314 16.614.18 24.906-.343z"], "trident": ["M17.156 16.438v41.656L192.78 234.22l-51.436 51.405-11.97 12L140.782 309l106.69 106.688-24.532 24.53 125.75 53.844-53.875-125.718-23.407 23.406-94.72-94.72 48.44-48.436 135.78 135.75-23.97 23.937 125.72 53.876-53.844-125.72-23.968 23.97-135.78-135.75 48.467-48.47 94.72 94.72-23.375 23.406 125.72 53.844-53.876-125.72-24.533 24.533L309.5 140.28l-11.406-11.374-11.97 11.97-51.468 51.436L58.812 16.438H17.157z"], "taunt": ["M48.906 19.656v10.782c0 103.173 10.53 206.07 41.313 289.53 30.78 83.463 82.763 148.094 164.53 170.563l2.188.626 2.25-.5c89.686-19.12 142.322-84.028 171.187-168.344 28.865-84.315 35.406-188.656 35.406-291.875v-10.78l-10.655 1.53C323.26 39.954 191.452 40 59.595 21.188l-10.69-1.53zM67.75 41.03c63.242 8.536 126.495 12.792 189.75 12.782v184.532h174.78c-4.905 27.572-11.31 53.747-19.592 77.937-27.348 79.884-73.757 137.33-155.157 155.564-.008-.003-.02.003-.03 0v-233.5H86.53c-12.87-60.99-18.277-128.81-18.78-197.313z"], "charge": ["M151.22 61.008c-45.151 7.449-99.44 35.085-131.642 54.097V297.21c5.34 7.523 13.07 12.906 24.904 17.07 5.308 1.868 11.417 3.433 18.221 4.783-21.112-27.026-26.391-50.921-21.297-79.236l17.715 3.192c-6.724 34.584 13.695 64.344 34.152 77.013l7.15 4.37 2.407 3.814c9.482 17.063 28.034 25.752 51.426 41.152l9.723 6.403-8.645 7.798c-9.834 8.873-17.062 16.44-18.367 26.559l-1.592 12.342-24.098-11.545c-11.192 12.316-20.47 25.593-27.652 40.025 10.977 6.704 36.525 19.136 49.105 16.346 32.21-21.813 59.517-67.5 71.09-97.953-6.484-24.65-21.778-46.56-40.277-70.047l-4.1-5.205c4.853-7.592 11.429-14.973 18.084-19.31 26.259-20.873 35.437-38.189 37.44-53.362.675-21.155-6.159-35.841-14.106-53.04l16.34-7.55c9.207 20.935 17.712 44.638 15.611 62.947-1.68 12.732-7.198 25.876-17.857 39.399 9.34-1.382 16.555-2.574 25.883-4.121l.262 10.343c.44 17.375 1.668 24.569 15.748 49.57l1.554 2.763-8.457 51.103c7.432 10.524 20.33 11.513 30.994 10.781 25.144-26.855 42.492-57.16 57.1-89.058-8.896-1.83-15.986-6.023-20.451-11.895-5.026-6.609-6.408-14.801-5.057-22.137 2.702-14.67 16.832-27.65 34.66-25.044l-.304-.04c4.278.478 8.63.829 13.035 1.09-42.222-45.878-38.747-104.57-74.713-138.82-37.98-22.166-89.34-36.372-133.988-36.701zm299.657 133.017c-25.974 8.19-52.938 16.89-80.334 23.028a3126.23 3126.23 0 0 1 8.764 18.293c29.023-10.805 51.564-25.555 71.57-41.32zm19.978 55.053c-40.912 3.884-85.203 8.795-125.962 4.25l-.153-.017-.152-.022c-8.297-1.213-13.24 4.437-14.356 10.494-.557 3.029-.034 5.724 1.684 7.983 1.688 2.22 4.886 4.52 11.58 5.46 52.566 1.922 92.792-11.677 127.36-28.148zm-163.32 43.738c4.068-.076 9.831 6.07 9.94 9.87.123 4.33-4.278 13.351-12.106 22.978-2.335-8.081-8.27-32.478 2.166-32.848zm-13.96 64.67l-19.882 19.58s-2.011-12.095 1.621-16.068c6.037-2.969 12.016-3.867 18.26-3.512zm-44.636 38.348l-11.55 35.494s-12.831-12.815-20.018-10.535c-12.026 3.815-17.207 33.71-17.207 33.71l-23.176-9.13s3.691 28.627 14.748 34.416c15.559 8.145 51.621-10.535 51.621-10.535s1.372 21.203 9.483 23.176c15.088 3.669 35.467-30.2 35.467-30.2s36.32 34.765 51.972 23.88c14.938-10.39 2.14-52.38-4.103-54.432-7.744-2.546-16.676 17.888-16.676 17.888s-10.826-24.025-22.063-27.017c-9.81-2.613-28.445 10.885-28.445 10.885l5.393-31.528c-3.305-.031-6.567-.272-9.77-.781l-10.37 29.932 4.347-31.245c-3.373-.936-6.912-2.436-9.653-3.978zM84.4 398.047c-11.613 11.065-20.069 23.628-27.237 37.137 3.725 1.954 7.425 4.1 11.086 6.3 7.066-13.88 15.86-26.738 26.148-38.648z"], "shield": ["M320.938 13.28c-16.646 34.584-38.466 60.157-63.094 60.157-24.522 0-47.035-25.275-63.656-59.593.366 39.358-9.71 90.884-30.938 105.125-21.228 14.24-49.64-12.002-78.844-32.126 17.455 34.04 42.095 67.5 29.78 92.28-12.21 24.576-59.172 35.96-92.874 35.626 29.338 19.29 78.842 45.803 78.844 74.188.002 28.384-49.504 53.71-78.844 73 33.702-.333 80.663 11.612 92.876 36.187 12.227 24.61-9.03 56.31-33.75 85.563 44.826-15.413 65.142-5.735 85.374 10.812h31.75c-42.74-35.413-72.062-107.828-72.062-191.563-.002-118.62 58.92-214.906 131.406-214.906 72.488 0 131.406 96.29 131.406 214.907 0 83.74-29.317 156.153-72.062 191.563h27.313c19.847-14.62 39.796-25.65 89.687-9.28-26.233-30.264-42.2-62.484-29.97-87.095 12.257-24.665 56.658-36.612 90.533-36.188-29.4-19.297-75.344-44.584-75.344-73 0-28.415 45.943-54.89 75.342-74.187-33.874.424-78.273-10.962-90.53-35.625-12.315-24.78 9.982-58.24 27.437-92.28-29.202 20.12-57.583 46.385-78.845 32.124-21.262-14.263-31.382-66.13-30.938-105.69zm-68.97 93.75c-19.56 2.543-37.343 25.564-37.343 55.407 0 16.447 5.67 30.986 14 41.032l10.156 12.218-15.593 2.937c-10.815 2.035-18.743 7.737-25.53 17.063-6.79 9.325-11.984 22.344-15.626 37.343-6.585 27.128-8.078 60.24-8.31 89.47h36.093l.656 8.656 9.124 122.563h76.187l8.095-122.5.563-8.72h34.375c-.026-29.592-.44-63.166-6.407-90.5-3.295-15.095-8.287-28.096-15.156-37.313-6.87-9.216-15.133-14.897-27.28-16.78l-15.94-2.47 10.064-12.593c7.97-9.996 13.375-24.36 13.375-40.406-.002-31.817-19.884-55.313-41.44-55.313-2.54 0-3.96-.103-4.03-.094h-.03z"], "heal": ["M250.9 18.9c-23.9 2.99-45.3 30.65-45.3 66.99 0 19.91 6.8 37.41 16.8 49.61l12.2 14.5-18.7 3.5c-13 2.5-22.6 9.5-30.7 20.8-8.5 11.5-14.8 26.9-19.1 45.2-8 32.7-9.9 72.7-9.9 108.2h43.6l11.7 160.5c30.4 7 63.1 6.5 92.3 0l10.7-160.5H356c0-35.7-.5-76.4-7.8-109.7-3.9-17.9-10-33.7-18.2-45.1-8.2-11.1-18.5-17.8-33.3-20.1l-18.9-3 11.9-14.9c9.9-12.1 16.4-29.6 16.4-49.01 0-38.54-24-66.99-50.3-66.99h-4.9zm145 3.59v41.85h-41.8v50.16h41.8v41.6h49.9v-41.6h41.9V64.34h-41.9V22.49h-49.9zM52.92 62.89v30.58H22.39v36.63h30.53v30.4h36.4v-30.4h30.58V93.47H89.32V62.89h-36.4zM92.63 199.7v21.8H70.75v26.3h21.88v21.9h26.27v-21.9h21.8v-26.3h-21.8v-21.8H92.63zm355.07 62.4v21.8h-21.9v26.3h21.9v21.9H474v-21.9h21.8v-26.3H474v-21.8h-26.3zm-307.5 99.4v15h-15v18h15v15h18.1v-15h15v-18h-15v-15h-18.1zm230 45.8v15h-15v18h15v15h18v-15h15v-18h-15v-15h-18zM49.32 431.8v15h-15v18h15v15h18.01v-15h15v-18h-15v-15H49.32z"], "mana": ["M253.8 15.56l-79.9 84.11 2.3 58.83 50.6 36.2 31.9 182 10.8-26.9 11.8-235.4 18.7 1-9.1 181 28.3-70.8 8.2-108 .9-17.93zm139 50.57l-46.6 50.77-3.9 51.1 10.6-26.2 30.4-13.7c3.2-20.6 6.3-41.3 9.5-61.97zm60.3 51.17l-85.7 38.4-102.6 255.9 14.6 83.3h7.8l147.6-293.1 16.7 8.4-143.4 284.7h24.4l146.6-291.8zm-340.2 18.9l-54.11 99.1 69.11 259.6h93.6l-51.1-274.8 18.3-3.4 51.8 278.2h19.9l-50.7-289.4zm358.3 260.4l-65.8-5.2-49.8 99.2 69.8-36.7zm-435.96-28l42.47 126.7h30.99L80.6 389.9z"], "hp": ["M372.48 31.215c-77.65 0-116.48 65.73-116.48 65.73s-38.83-65.72-116.48-65.72c-37.14 0-107.77 33.72-107.77 125.13 0 161.24 224.25 324.43 224.25 324.43s224.25-163.19 224.25-324.43c0-91.42-70.63-125.13-107.77-125.14zm-145.492 115.02h60.698v79.415h79.238v60.7h-79.238v79.884h-60.698V286.35h-80.064v-60.7h80.064z"], "atk": ["M19.75 14.438c59.538 112.29 142.51 202.35 232.28 292.718l3.626 3.75.063-.062c21.827 21.93 44.04 43.923 66.405 66.25-18.856 14.813-38.974 28.2-59.938 40.312l28.532 28.53 68.717-68.717c42.337 27.636 76.286 63.646 104.094 105.81l28.064-28.06c-42.47-27.493-79.74-60.206-106.03-103.876l68.936-68.938-28.53-28.53c-11.115 21.853-24.413 42.015-39.47 60.593-43.852-43.8-86.462-85.842-130.125-125.47-.224-.203-.432-.422-.656-.625C183.624 122.75 108.515 63.91 19.75 14.437zm471.875 0c-83.038 46.28-154.122 100.78-221.97 161.156l22.814 21.562 56.81-56.812 13.22 13.187-56.438 56.44 24.594 23.186c61.802-66.92 117.6-136.92 160.97-218.72zm-329.53 125.906l200.56 200.53c-4.36 4.443-8.84 8.793-13.405 13.032L148.875 153.53l13.22-13.186zm-76.69 113.28l-28.5 28.532 68.907 68.906c-26.29 43.673-63.53 76.414-106 103.907l28.063 28.06c27.807-42.164 61.758-78.174 104.094-105.81l68.718 68.717 28.53-28.53c-20.962-12.113-41.08-25.5-59.937-40.313 17.865-17.83 35.61-35.433 53.157-52.97l-24.843-25.655-55.47 55.467c-4.565-4.238-9.014-8.62-13.374-13.062l55.844-55.844-24.53-25.374c-18.28 17.856-36.602 36.06-55.158 54.594-15.068-18.587-28.38-38.758-39.5-60.625z"], "timer": ["M179.594 20.688v41.406h143.25V20.687h-143.25zM256.03 82C143.04 82 51.25 173.727 51.25 286.656c0 112.93 91.788 204.656 204.78 204.656 112.994 0 204.75-91.728 204.75-204.656C460.78 173.73 369.025 82 256.03 82zm0 35.625c93.42 0 169.126 75.665 169.126 169.03 0 93.368-75.706 169.564-169.125 169.564-93.417 0-169.155-76.197-169.155-169.564 0-93.366 75.736-169.03 169.156-169.03zm76.19 20.28l-72.47 107.5c10.67 1.036 20.516 6.045 27.625 13.814l44.844-121.314zm-85.533 1.064v45.31c3.077-.275 6.196-.405 9.344-.405 3.155 0 6.263.13 9.345.406v-45.31h-18.688zm-88.53 36.655l-13.22 13.22L177 220.874c3.992-4.784 8.432-9.198 13.22-13.188l-32.064-32.062zm195.75 0l-32.063 32.063c4.786 3.99 9.196 8.403 13.187 13.187l32.064-32.03-13.188-13.22zm-98.344 81.22c-2.08.01-4.195.243-6.313.686-16.948 3.544-27.7 20.005-24.156 36.94 3.544 16.932 20.02 27.698 36.97 24.155 16.946-3.543 27.7-20.004 24.155-36.938-3.102-14.816-16.104-24.925-30.658-24.843zM108.28 277.31V296h45.314c-.278-3.08-.406-6.192-.406-9.344 0-3.146.13-6.27.406-9.344H108.28zm250.157 0c.277 3.075.438 6.197.438 9.344 0 3.153-.16 6.264-.438 9.344h45.344v-18.688H358.44zm-60.062 6.72c.993 10.522-1.968 20.742-7.813 28.937l124 19.092-116.187-48.03zM176.97 352.405l-32.032 32.03 13.218 13.22 32.063-32.03c-4.798-4-9.253-8.424-13.25-13.22zm158.093 0c-4 4.796-8.423 9.22-13.22 13.22l32.063 32.03 13.188-13.22-32.03-32.03zM246.688 389v45.313h18.687V389c-3.082.278-6.19.438-9.344.438-3.147 0-6.266-.16-9.342-.438z"], "ok": ["M17.47 250.9C88.82 328.1 158 397.6 224.5 485.5c72.3-143.8 146.3-288.1 268.4-444.37L460 26.06C356.9 135.4 276.8 238.9 207.2 361.9c-48.4-43.6-126.62-105.3-174.38-137z"], "no": ["M256 16C123.45 16 16 123.45 16 256s107.45 240 240 240 240-107.45 240-240S388.55 16 256 16zm0 60c99.41 0 180 80.59 180 180s-80.59 180-180 180S76 355.41 76 256 156.59 76 256 76zm-80.625 60c-.97-.005-2.006.112-3.063.313v-.032c-18.297 3.436-45.264 34.743-33.375 46.626l73.157 73.125-73.156 73.126c-14.63 14.625 29.275 58.534 43.906 43.906L256 299.906l73.156 73.156c14.63 14.628 58.537-29.28 43.906-43.906l-73.156-73.125 73.156-73.124c14.63-14.625-29.275-58.5-43.906-43.875L256 212.157l-73.156-73.125c-2.06-2.046-4.56-3.015-7.47-3.03z"], "hint": ["M247 18.656c-80.965 0-146.875 65.02-146.875 145.625 0 45.63 15.758 67 33.313 94.845 11.706 18.57 23.767 39.91 30.53 70.563h165.095c6.728-31.387 18.91-53.12 30.718-71.875 17.58-27.92 33.314-48.912 33.314-93.532 0-80.66-65.127-145.624-146.094-145.624zm-99.78 127.906L170.437 167 210 201.813l31.188-34.125 6.78-7.438 6.907 7.344 30.75 32.72 39.97-33.47 22.686-19-7.655 28.594L304.75 310.28l-18.063-4.842 28.22-105.25-24.032 20.125-6.78 5.656-6.033-6.44-29.906-31.78-30.562 33.438-6.188 6.78-6.875-6.062-23.25-20.437 27.94 104.218-18.064 4.812-35.937-134.063-8-29.875zm22.593 201.813V389.5L315 348.375H169.812zm153.593 17.063l-153.594 43.53v29.438l153.594-43.5v-29.47zm0 48.875L203.97 448.156h119.436v-33.844zm-132.562 52.53v20.533h113.282v-20.53h-113.28z"]};
+const ZODIAC = [{"id": "aries", "month": "3월", "name": "양자리", "color": "#FF6B6B", "myth": "신들의 왕 제우스가 황금 양을 하늘로 보내 프릭소스 남매를 구했어요. 그 양의 황금빛 털이 황금 양털이 되었고, 영웅 이아손이 찾아 떠난 모험의 시작이에요!"}, {"id": "taurus", "month": "4월", "name": "황소자리", "color": "#4ECDC4", "myth": "제우스가 황소로 변신해 아름다운 에우로파 공주를 크레타 섬으로 데려갔어요. 그 황소의 모습이 하늘의 별자리가 되었답니다!"}, {"id": "gemini", "month": "5월", "name": "쌍둥이자리", "color": "#FFE66D", "myth": "카스토르와 폴룩스, 사이좋은 쌍둥이 형제예요. 폴룩스는 불사신인데 형을 너무 사랑해서 제우스에게 부탁해 둘 다 별이 되었어요!"}, {"id": "cancer", "month": "6월", "name": "게자리", "color": "#A8E6CF", "myth": "헤라 여신이 헤라클레스의 발을 물라고 보낸 게예요. 헤라클레스에게 밟혀 죽었지만, 헤라가 고마워서 하늘의 별자리로 만들어 주었어요!"}, {"id": "leo", "month": "7월", "name": "사자자리", "color": "#FFB347", "myth": "헤라클레스가 12가지 과업 중 첫 번째로 네메아의 사자를 물리쳤어요. 어떤 무기로도 상처 입지 않는 사자를 맨손으로 쓰러뜨렸답니다!"}, {"id": "virgo", "month": "8월", "name": "처녀자리", "color": "#DDA0DD", "myth": "곡식의 여신 데메테르의 딸 페르세포네예요. 봄이 오면 땅 위로 올라오고, 겨울엔 지하세계로 돌아가는 계절의 비밀을 간직한 별자리예요!"}, {"id": "libra", "month": "9월", "name": "천칭자리", "color": "#87CEEB", "myth": "정의의 여신 아스트라이아가 가진 황금 저울이에요. 선한 마음과 나쁜 마음을 달아보는 저울로, 공정함의 상징이에요!"}, {"id": "scorpio", "month": "10월", "name": "전갈자리", "color": "#FF4757", "myth": "사냥꾼 오리온이 모든 동물을 다 잡겠다고 뽐내자, 가이아 여신이 전갈을 보내 혼내줬어요. 전갈이 이겨서 하늘의 별자리가 되었답니다!"}, {"id": "sagittarius", "month": "11월", "name": "사수자리", "color": "#FFA07A", "myth": "켄타우로스 케이론이에요. 반은 사람, 반은 말인 현명한 스승으로 헤라클레스와 아킬레스를 가르쳤어요. 활을 잘 쏘는 것으로 유명해요!"}, {"id": "capricorn", "month": "12월", "name": "염소자리", "color": "#98D8C8", "myth": "판 신이 괴물 티폰을 피해 물고기로 변하려다 반만 변해버렸어요! 물고기 꼬리에 염소 머리를 가진 재미있는 모습이 되었답니다!"}, {"id": "aquarius", "month": "1월", "name": "물병자리", "color": "#7EC8E3", "myth": "신들에게 물을 날라주던 아름다운 소년 가니메데스예요. 제우스가 독수리로 변해 올림포스로 데려와 신들의 술 따르는 시종이 되었어요!"}, {"id": "pisces", "month": "2월", "name": "물고기자리", "color": "#B8A9C9", "myth": "사랑의 여신 아프로디테와 아들 에로스가 괴물을 피해 물고기로 변해 도망쳤어요. 서로 잃어버리지 않으려고 꼬리를 묶고 헤엄쳤답니다!"}];
+</script>
+<script>
+const $ = s => document.querySelector(s);
+const svg = (k, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 512 512" aria-hidden="true">${(ICONS[k] || []).map(d => `<path d="${d}"/>`).join('')}</svg>`;
+document.querySelectorAll('svg[data-i]').forEach(el => { el.innerHTML = (ICONS[el.dataset.i] || []).map(d => `<path d="${d}"/>`).join(''); });
+const Z = id => ZODIAC.find(z => z.id === id);
+const fracHTML = s => s.replace(/(\d+)\/(\d+)/g, '<span class="frac"><span>$1</span><span>$2</span></span>');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ── 소리 (첫 터치 후에만 재생) ──
+let actx = null, soundOn = true;
+function beep(kind) {
+  if (!soundOn) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const t = actx.currentTime, notes = { ok: [523, 784], bad: [220, 165], hit: [140], play: [392, 523] }[kind] || [440];
+    notes.forEach((f, i) => { const o = actx.createOscillator(), g = actx.createGain(); o.type = kind === 'bad' ? 'sawtooth' : 'triangle'; o.frequency.value = f; o.connect(g); g.connect(actx.destination);
+      const s = t + i * 0.11; g.gain.setValueAtTime(0.0001, s); g.gain.exponentialRampToValueAtTime(0.12, s + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, s + 0.22); o.start(s); o.stop(s + 0.25); });
+  } catch (e) {}
+}
+
+// ── 시작 화면 ──
+let setup = { diff: 'easy', hero: 'leo' };
+function renderSetup() {
+  const times = { easy: '15초', normal: '10초', hard: '10초', super: '5~10초' };
+  const sub = { easy: '쉬운 계산', normal: '곱셈·나눗셈', hard: '분수·소수', super: '모두 섞어서' };
+  $('#diffs').innerHTML = Object.entries(DIFFS).map(([k, d]) => `<button class="diff" data-diff="${k}" aria-pressed="${setup.diff === k}"><b>${d.label}</b><span>${sub[k]} · ${times[k]}</span></button>`).join('');
+  $('#heroes').innerHTML = ZODIAC.map(z => `<button class="hpick" data-hero="${z.id}" aria-pressed="${setup.hero === z.id}" style="--c:${z.color}">${svg(z.id)}<span>${z.name}</span></button>`).join('');
+  const z = Z(setup.hero);
+  $('#mythbox').innerHTML = `<b style="color:${z.color}">${z.name} 이야기</b><br>${z.myth}`;
+}
+$('#diffs').addEventListener('click', e => { const b = e.target.closest('[data-diff]'); if (b) { setup.diff = b.dataset.diff; renderSetup(); } });
+$('#heroes').addEventListener('click', e => { const b = e.target.closest('[data-hero]'); if (b) { setup.hero = b.dataset.hero; renderSetup(); } });
+$('#start').addEventListener('click', () => startGame());
+
+// ── 게임 ──
+let st = null, ui = null, stats = null;
+function startGame() {
+  const foes = ZODIAC.filter(z => z.id !== setup.hero);
+  st = newGame(setup.hero, foes[Math.floor(Math.random() * foes.length)].id, setup.diff, Math.random);
+  ui = { mode: 'idle', sel: null, attacker: null, spellIdx: null, busy: false, peek: null };
+  stats = { asked: 0, right: 0, missed: [] };
+  $('#setup').hidden = true; $('#endLayer').hidden = true; $('#game').hidden = false;
+  setBanner('내 차례예요! 카드를 내거나 공격하세요', 'mine');
+  render(); window.scrollTo(0, 0);
+}
+function setBanner(t, cls = '') { const b = $('#banner'); b.textContent = t; b.className = 'banner ' + cls; }
+const myTurn = () => st && st.turn === 'p' && !st.winner && !ui.busy;
+
+function heroHTML(side) {
+  const S = st[side], z = Z(S.hero.id);
+  return `<span class="face" style="--c:${z.color}">${svg(z.id)}</span><span class="info"><span class="nm">${side === 'p' ? '나' : '상대'} · ${z.name}</span>
+    <span class="hpbar"><i style="width:${Math.max(0, S.hero.hp) / S.hero.max * 100}%"></i></span></span>
+    <span class="hpnum">${svg('hp')}${Math.max(0, S.hero.hp)}</span>`;
+}
+function infoHTML(side) {
+  const S = st[side];
+  const pips = Array.from({ length: S.maxMana }, (_, i) => `<i class="${i < S.mana ? 'on' : ''}"></i>`).join('');
+  return `<span class="mana">별빛 ${S.mana}/${S.maxMana}</span><span class="pips">${pips}</span><span>${side === 'e' ? `카드 ${S.hand.length}장 · ` : ''}덱 ${S.deck.length}장</span>`;
+}
+function unitHTML(m, side, targets) {
+  const c = CARDS[m.id];
+  const isT = targets && targets.some(t => t.kind === 'm' && t.uid === m.uid);
+  const cls = ['unit', side, m.taunt ? 'taunt' : '', m.shield ? 'shielded' : '',
+    side === 'p' && myTurn() && ui.mode === 'idle' && m.ready ? 'ready' : '',
+    ui.attacker === m.uid ? 'picked' : '', isT ? 'tgt' : '', ui.mode !== 'idle' && side === 'e' && !isT ? 'dim' : ''].join(' ');
+  const kws = c.kw.filter(k => k !== 'heal').map(k => `<span title="${KW[k]}">${svg(k)}</span>`).join('');
+  return `<button class="${cls}" data-uid="${m.uid}" aria-label="${c.name} 공격력 ${m.atk} 체력 ${m.hp}">
+    <span class="face">${svg(m.id)}</span>${kws ? `<span class="kw">${kws}</span>` : ''}
+    <span class="st a">${m.atk}</span><span class="st h ${m.hp < m.max ? 'hurt' : ''}">${m.hp}</span></button>`;
+}
+function currentTargets() {
+  if (ui.mode === 'attack') return legalTargets(st, 'p');
+  if (ui.mode === 'spell') return spellTargets(st, 'p');
+  return null;
+}
+function render() {
+  const targets = currentTargets();
+  $('#foeHero').innerHTML = heroHTML('e'); $('#myHero').innerHTML = heroHTML('p');
+  $('#foeHero').classList.toggle('tgt', !!(targets && targets.some(t => t.kind === 'hero')));
+  $('#foeInfo').innerHTML = infoHTML('e'); $('#myInfo').innerHTML = infoHTML('p');
+  $('#foeBoard').innerHTML = st.e.board.map(m => unitHTML(m, 'e', targets)).join('') || '<span class="empty">상대 자리가 비었어요</span>';
+  $('#myBoard').innerHTML = st.p.board.map(m => unitHTML(m, 'p', null)).join('') || '<span class="empty">카드를 내면 여기에 서요</span>';
+  const hand = st.p.hand.map((id, i) => {
+    const c = CARDS[id], ok = canPlay(st, 'p', i).ok;
+    return `<button class="card ${c.type === 'spell' ? 'spell' : ''} ${ok && myTurn() ? '' : 'no'} ${ui.sel === i ? 'sel' : ''}" data-hand="${i}" aria-label="${c.name}, 별빛 ${c.cost}">
+      <span class="cost">${c.cost}</span><span class="face">${svg(id)}</span><span class="nm">${c.name}</span>
+      ${c.type === 'minion' ? `<span class="sts"><span class="a">${c.atk}</span><span class="h">${c.hp}</span></span>` : `<span class="fx">${c.short}</span>`}</button>`;
+  });
+  for (let i = hand.length; i < MAX_HAND; i++) hand.push('<span></span>');
+  $('#hand').innerHTML = hand.join('');
+  // 상세 / 안내
+  let d = '';
+  if (ui.mode === 'attack') d = `<div class="detail"><div class="txt hint">빨갛게 깜빡이는 상대를 눌러 공격하세요${legalTargets(st, 'p').every(t => t.kind === 'm') && st.e.board.some(m => m.taunt) ? ' (방패 카드부터 공격해야 해요)' : ''}</div><div class="act"><button class="cancel" data-cancel>그만두기</button></div></div>`;
+  else if (ui.mode === 'spell') d = `<div class="detail"><div class="txt hint">${CARDS[st.p.hand[ui.spellIdx]].name}: 맞힐 상대를 누르세요</div><div class="act"><button class="cancel" data-cancel>그만두기</button></div></div>`;
+  else if (ui.peek) {
+    const c = CARDS[ui.peek];
+    d = `<div class="detail"><span class="big" style="color:var(--foe)">${svg(ui.peek)}</span><div class="txt"><b>${c.name}</b><div class="tags">${(c.kw || []).map(k => `<span>${svg(k)}${KW[k]}: ${KW_HELP[k]}</span>`).join('')}<span>공격력 ${c.atk} · 체력 ${c.hp}</span></div>${c.story}</div><div class="act"><button class="cancel" data-cancel>닫기</button></div></div>`;
+  }
+  else if (ui.sel !== null && st.p.hand[ui.sel]) {
+    const id = st.p.hand[ui.sel], c = CARDS[id], cp = canPlay(st, 'p', ui.sel);
+    const tags = (c.kw || []).map(k => `<span>${svg(k)}${KW[k]}: ${KW_HELP[k]}${k === 'heal' ? ` (+${c.heal})` : ''}</span>`).join('') + (c.type === 'spell' ? `<span>마법 · ${c.text}</span>` : `<span>공격력 ${c.atk} · 체력 ${c.hp}</span>`);
+    d = `<div class="detail"><span class="big">${svg(id)}</span><div class="txt"><b>${c.name}</b><div class="tags">${tags}</div>${c.story}</div>
+      <div class="act"><button class="play" data-play ${cp.ok && myTurn() ? '' : 'disabled'}>카드 내기</button>${!cp.ok ? `<span class="why">${cp.why}</span>` : ''}</div></div>`;
+  } else if (myTurn()) {
+    const ready = st.p.board.some(m => m.ready), playable = st.p.hand.some((_, i) => canPlay(st, 'p', i).ok);
+    d = `<div class="hint">${ready ? '초록빛 카드를 눌러 공격할 수 있어요 · ' : ''}${playable ? '아래 카드를 눌러 신화 이야기를 보고 낼 수 있어요' : ready ? '' : '할 수 있는 게 없으면 턴 끝내기를 눌러요'}</div>`;
+  }
+  $('#detail').innerHTML = d;
+  const canAct = myTurn() && (st.p.board.some(m => m.ready) || st.p.hand.some((_, i) => canPlay(st, 'p', i).ok));
+  $('#endTurn').disabled = !myTurn();
+  $('#endTurn').classList.toggle('nudge', myTurn() && !canAct);
+}
+
+// ── 효과 ──
+function anchor(target, side) {
+  if (target.kind === 'hero') return side === 'e' ? $('#foeHero') : $('#myHero');
+  return document.querySelector(`[data-uid="${target.uid}"]`);
+}
+function floatAt(el, text, cls) {
+  if (!el) return;
+  const r = el.getBoundingClientRect(), f = document.createElement('div');
+  f.className = 'float ' + cls; f.textContent = text; f.style.left = (r.left + r.width / 2) + 'px'; f.style.top = (r.top + r.height / 2) + 'px';
+  $('#fx').appendChild(f); setTimeout(() => f.remove(), 1300);
+  el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
+}
+
+// ── 문제 창 ──
+// mode 'play': 내가 풀기 / 'watch': 컴퓨터가 푸는 모습 보기
+function ask(p, head, power, mode, aiCorrect) {
+  return new Promise(resolve => {
+    const L = $('#quizLayer');
+    const long = p.q.length > 13;
+    L.innerHTML = `<div class="quiz ${mode === 'watch' ? 'watch' : ''}" role="dialog" aria-label="수학 문제">
+      <div class="qhead">${head}<span class="pw">공격력 ${power}</span></div>
+      <div class="eq ${long ? 'long' : ''}">${fracHTML(p.q)}${p.q.includes('…') ? '' : ' = ?'}</div>
+      <div class="choices">${p.choices.map((c, i) => `<button class="choice" data-c="${i}" ${mode === 'watch' ? 'disabled' : ''}>${fracHTML(c.s)}</button>`).join('')}</div>
+      ${mode === 'play' ? `<div class="timer"><i id="tbar"></i></div><div class="tsec">${svg('timer')}<span id="tsec">${p.time}</span>초</div>` : '<div class="tsec" style="color:var(--foe)">컴퓨터가 푸는 중…</div>'}
+      <div id="qres"></div></div>`;
+    L.hidden = false;
+    let done = false, iv = null, to = null;
+    const finish = (idx, timedOut) => {
+      if (done) return; done = true; clearInterval(iv); clearTimeout(to);
+      const right = p.choices.findIndex(c => c === p.ans);
+      const correct = idx === right;
+      L.querySelectorAll('.choice').forEach((b, i) => { b.disabled = true; if (i === right) b.classList.add('right'); else if (i === idx) b.classList.add('wrong'); });
+      const bar = $('#tbar'); if (bar) { const w = getComputedStyle(bar).transform; bar.style.transition = 'none'; bar.style.transform = w; }
+      resolve({ correct, timedOut, show: (resHTML, wait) => {
+        $('#qres').innerHTML = resHTML;
+        return new Promise(res2 => {
+          let closed = false, timer = null;
+          const close = () => { if (closed) return; closed = true; clearTimeout(timer); L.hidden = true; L.innerHTML = ''; res2(); };
+          const btn = $('#qok'); if (btn) { btn.addEventListener('click', close); btn.focus(); }
+          timer = setTimeout(close, wait);
+        });
+      } });
+    };
+    if (mode === 'play') {
+      L.querySelector('.choices').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) finish(+b.dataset.c, false); });
+      const bar = $('#tbar'); bar.style.transform = 'scaleX(1)';
+      requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.transition = `transform ${p.time}s linear`; bar.style.transform = 'scaleX(0)'; }));
+      let left = p.time; iv = setInterval(() => { left--; const s = $('#tsec'); if (s) s.textContent = Math.max(0, left); }, 1000);
+      to = setTimeout(() => finish(-1, true), p.time * 1000);
+    } else {
+      const right = p.choices.findIndex(c => c === p.ans);
+      const wrongs = p.choices.map((_, i) => i).filter(i => i !== right);
+      setTimeout(() => finish(aiCorrect ? right : wrongs[Math.floor(Math.random() * wrongs.length)], false), 1100);
+    }
+  });
+}
+function resultHTML(p, r, full, dmg, who) {
+  if (r.correct) return `<div class="result ok"><b>정답!</b><span class="pow">공격력 ${full} 그대로 100%</span></div>`;
+  const pct = Math.round(dmg / full * 100);
+  return `<div class="result bad"><b>${r.timedOut ? '시간이 끝났어요!' : '정답이 아니에요!'} 정답은 ${fracHTML(p.ans.s)}</b>
+    <span>${fracHTML(p.q.replace(' … ?', ''))}${p.q.includes('…') ? ' … ' : ' = '}${fracHTML(p.ans.s)}</span>
+    <span class="tip">${svg('hint')}<span>${p.tip}</span></span>
+    <span class="pow"><s>공격력 ${full}</s> → ${dmg} (${pct}%)</span>
+    ${who === 'p' ? '<button class="qbtn" id="qok">알겠어요</button>' : ''}</div>`;
+}
+
+// 내 공격·마법 한 번 처리: 문제 → 결과 → 피해
+async function myStrike(kind, payload) {
+  ui.busy = true; render();
+  const p = makeProblem(st.diff, Math.random);
+  let head, full;
+  if (kind === 'attack') { const A = findMinion(st, payload.uid).m, t = payload.target; full = A.atk; head = `${svg(A.id)} ${CARDS[A.id].name} → ${t.kind === 'hero' ? '상대 영웅' : CARDS[findMinion(st, t.uid).m.id].name}`; }
+  else { const c = CARDS[st.p.hand[payload.idx]]; full = c.atk; head = `${svg(st.p.hand[payload.idx])} ${c.name}`; }
+  const r = await ask(p, head, full, 'play');
+  ui.mode = 'idle'; ui.attacker = null; ui.spellIdx = null; ui.sel = null; // 대상 고르기 끝 (카드가 손에서 빠지기 전에)
+  stats.asked++; if (r.correct) stats.right++; else if (stats.missed.length < 8) stats.missed.push(p);
+  beep(r.correct ? 'ok' : 'bad');
+  let out;
+  if (kind === 'attack') {
+    out = resolveAttack(st, 'p', payload.uid, payload.target, r.correct, Math.random);
+    await r.show(resultHTML(p, r, full, out.dmg, 'p'), r.correct ? 1100 : 6000);
+    floatAt(anchor(payload.target, 'e'), out.blocked ? '보호막!' : `-${out.dealt}`, out.blocked ? 'blk' : 'dmg');
+    if (out.counter || out.counterBlocked) floatAt(document.querySelector(`[data-uid="${payload.uid}"]`), out.counterBlocked ? '보호막!' : `-${out.counter}`, out.counterBlocked ? 'blk' : 'dmg');
+    await sleep(350); render();
+  } else {
+    const id = spendSpell(st, 'p', payload.idx);
+    out = resolveSpell(st, 'p', id, payload.target, r.correct, Math.random);
+    await r.show(resultHTML(p, r, full, out.dmg, 'p'), r.correct ? 1100 : 6000);
+    out.hits.forEach(h => floatAt(anchor(h.target, 'e'), h.blocked ? '보호막!' : `-${h.dealt}`, h.blocked ? 'blk' : 'dmg'));
+    await sleep(350); render();
+  }
+  beep('hit');
+  await sleep(250);
+  ui.busy = false; ui.mode = 'idle'; ui.attacker = null; ui.spellIdx = null; ui.sel = null;
+  render(); checkEnd();
+}
+
+// ── 클릭 처리 ──
+document.addEventListener('click', async e => {
+  if (!st || $('#game').hidden) return;
+  const cancel = e.target.closest('[data-cancel]');
+  if (cancel) { ui.mode = 'idle'; ui.attacker = null; ui.spellIdx = null; ui.peek = null; render(); return; }
+  if (!myTurn()) return;
+  const hc = e.target.closest('[data-hand]');
+  if (hc) { ui.peek = null; ui.mode = 'idle'; ui.attacker = null; ui.sel = ui.sel === +hc.dataset.hand ? null : +hc.dataset.hand; render(); return; }
+  if (e.target.closest('[data-play]')) {
+    const idx = ui.sel, c = CARDS[st.p.hand[idx]];
+    if (!canPlay(st, 'p', idx).ok) return;
+    ui.sel = null;
+    if (c.type === 'minion') {
+      const r = playMinion(st, 'p', idx); beep('play'); render();
+      const el = document.querySelector(`[data-uid="${r.m.uid}"]`);
+      if (r.healed) floatAt($('#myHero'), `+${r.healed}`, 'heal');
+      setBanner(r.m.ready ? `${c.name} 등장! 돌진이라 바로 공격할 수 있어요` : `${c.name} 등장! 다음 턴부터 공격해요`, 'mine');
+      if (el) el.classList.add('shake');
+      return;
+    }
+    if (c.target === 'self') { spendSpell(st, 'p', idx); const n = healHero(st, 'p', c.heal); beep('ok'); render(); floatAt($('#myHero'), `+${n}`, 'heal'); setBanner(`${c.name}! 체력 ${n} 회복`, 'mine'); return; }
+    if (c.target === 'enemy') { ui.mode = 'spell'; ui.spellIdx = idx; render(); return; }
+    await myStrike('spell', { idx, target: null }); return;
+  }
+  const u = e.target.closest('.unit');
+  const fh = e.target.closest('#foeHero');
+  if (ui.mode === 'attack' || ui.mode === 'spell') {
+    let target = null;
+    if (fh) target = { kind: 'hero' };
+    else if (u && u.classList.contains('e')) target = { kind: 'm', uid: +u.dataset.uid };
+    else if (u && +u.dataset.uid === ui.attacker) { ui.mode = 'idle'; ui.attacker = null; render(); return; }
+    else if (u && u.classList.contains('p') && ui.mode === 'attack') { const m = findMinion(st, +u.dataset.uid).m; if (m.ready) { ui.attacker = m.uid; render(); } return; }
+    if (!target) return;
+    const ok = currentTargets().some(t => t.kind === target.kind && (t.kind === 'hero' || t.uid === target.uid));
+    if (!ok) { setBanner(ui.mode === 'attack' ? '방패 카드부터 공격해야 해요!' : '그 대상은 고를 수 없어요', 'foe'); return; }
+    if (ui.mode === 'attack') await myStrike('attack', { uid: ui.attacker, target });
+    else await myStrike('spell', { idx: ui.spellIdx, target });
+    return;
+  }
+  if (u && u.classList.contains('e')) { ui.sel = null; ui.peek = findMinion(st, +u.dataset.uid).m.id; render(); return; }
+  if (u && u.classList.contains('p')) {
+    const m = findMinion(st, +u.dataset.uid).m; ui.sel = null; ui.peek = null;
+    if (!m.ready) { ui.peek = m.id; setBanner(`${CARDS[m.id].name}은(는) 다음 턴에 공격할 수 있어요`, 'mine'); render(); return; }
+    if (!legalTargets(st, 'p').length) return;
+    ui.mode = 'attack'; ui.attacker = m.uid; render(); return;
+  }
+});
+$('#endTurn').addEventListener('click', () => { if (myTurn()) foeTurn(); });
+$('#sound').addEventListener('click', () => { soundOn = !soundOn; $('#sound').textContent = soundOn ? '♪' : '×'; $('#sound').setAttribute('aria-label', soundOn ? '소리 끄기' : '소리 켜기'); });
+
+// ── 컴퓨터 차례 ──
+async function foeTurn() {
+  ui.busy = true; ui.mode = 'idle'; ui.sel = null; ui.attacker = null; ui.peek = null;
+  endTurn(st); setBanner('상대 차례…', 'foe'); render();
+  await sleep(700);
+  let guard = 0;
+  while (!st.winner && guard++ < 30) {
+    const a = aiNextAction(st, 'e');
+    if (a.type === 'end') break;
+    if (a.type === 'play') {
+      const r = playMinion(st, 'e', a.idx); beep('play'); setBanner(`상대가 ${CARDS[r.m.id].name}을(를) 냈어요`, 'foe'); render();
+      if (r.healed) floatAt($('#foeHero'), `+${r.healed}`, 'heal');
+      await sleep(900); continue;
+    }
+    const c = a.type === 'spell' ? CARDS[st.e.hand[a.idx]] : null;
+    if (c && c.target === 'self') { spendSpell(st, 'e', a.idx); const n = healHero(st, 'e', c.heal); setBanner(`상대가 ${c.name}로 체력 ${n} 회복`, 'foe'); render(); floatAt($('#foeHero'), `+${n}`, 'heal'); await sleep(1000); continue; }
+    const p = makeProblem(st.diff, Math.random), aiOk = Math.random() < DIFFS[st.diff].aiAcc;
+    let head, full;
+    if (a.type === 'attack') { const A = findMinion(st, a.uid).m; full = A.atk; head = `${svg(A.id)} 상대의 ${CARDS[A.id].name} → ${a.target.kind === 'hero' ? '나' : CARDS[findMinion(st, a.target.uid).m.id].name}`; }
+    else { full = c.atk; head = `${svg(st.e.hand[a.idx])} 상대의 ${c.name}`; }
+    setBanner('상대도 문제를 풀어요', 'foe');
+    const r = await ask(p, head, full, 'watch', aiOk);
+    let out;
+    if (a.type === 'attack') { out = resolveAttack(st, 'e', a.uid, a.target, r.correct, Math.random); }
+    else { const id = spendSpell(st, 'e', a.idx); out = resolveSpell(st, 'e', id, a.target, r.correct, Math.random); }
+    await r.show(resultHTML(p, r, full, out.dmg, 'e'), r.correct ? 1000 : 2600);
+    if (a.type === 'attack') {
+      floatAt(anchor(a.target, 'p'), out.blocked ? '보호막!' : `-${out.dealt}`, out.blocked ? 'blk' : 'dmg');
+      if (out.counter || out.counterBlocked) floatAt(document.querySelector(`[data-uid="${a.uid}"]`), out.counterBlocked ? '보호막!' : `-${out.counter}`, out.counterBlocked ? 'blk' : 'dmg');
+    } else out.hits.forEach(h => floatAt(anchor(h.target, 'p'), h.blocked ? '보호막!' : `-${h.dealt}`, h.blocked ? 'blk' : 'dmg'));
+    beep('hit'); await sleep(350); render(); await sleep(450);
+  }
+  if (checkEnd()) return;
+  const drawn = endTurn(st);
+  ui.busy = false;
+  setBanner(drawn ? `내 차례! ${CARDS[drawn].name} 카드를 뽑았어요` : (st.p.hand.length >= MAX_HAND ? '내 차례! 손이 가득 차서 카드를 못 뽑았어요' : '내 차례예요!'), 'mine');
+  render();
+}
+
+// ── 끝 ──
+function checkEnd() {
+  if (!st.winner) return false;
+  ui.busy = true; render();
+  const win = st.winner === 'p', z = Z(st.p.hero.id), rate = stats.asked ? Math.round(stats.right / stats.asked * 100) : 0;
+  const L = $('#endLayer');
+  L.innerHTML = `<div class="endbox" role="dialog" aria-label="결과">
+    <h2 style="--c:${z.color}">${svg(z.id)}${win ? '승리했어요!' : '아쉽게 졌어요'}</h2>
+    <div class="score"><div><b>${stats.right}/${stats.asked}</b>맞힌 문제</div><div><b>${rate}%</b>정답률</div><div><b>${DIFFS[st.diff].label}</b>난이도</div></div>
+    <button class="go" id="again">한 판 더!</button>
+    <button class="cancel" id="toSetup">난이도·영웅 바꾸기</button>
+    <div class="myth"><b style="color:${z.color}">${z.name} 이야기</b><br>${z.myth}</div>
+    ${stats.missed.length ? `<div class="lbl" style="margin:0">다시 보는 문제</div><div class="review">${stats.missed.map(p => `<div><span class="eqs">${fracHTML(p.q.replace(' … ?', ' … '))}${p.q.includes('…') ? '' : ' ='}</span><span class="ans">${fracHTML(p.ans.s)}</span></div>`).join('')}</div>` : ''}</div>`;
+  L.hidden = false;
+  $('#again').addEventListener('click', () => startGame());
+  $('#toSetup').addEventListener('click', () => { L.hidden = true; $('#game').hidden = true; $('#setup').hidden = false; renderSetup(); });
+  return true;
+}
+renderSetup();
+</script>
+
+</body>
+</html>
