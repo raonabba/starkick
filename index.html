@@ -138,7 +138,7 @@ const ZODIAC=[
 
   {id:"scorpio",month:"10월",name:"전갈자리",emoji:"♏",color:"#FF4757",glowColor:"rgba(255,71,87,0.5)",
    myth:"사냥꾼 오리온이 모든 동물을 다 잡겠다고 뽐내자, 가이아 여신이 전갈을 보내 혼내줬어요. 전갈이 이겨서 하늘의 별자리가 되었답니다!",
-   atkSkill:{name:"독침 공격",desc:"다음 발사가 3배 파워로 날아가요!",icon:"🦂",type:"double_power",flavorText:"치명적인 독침이 3배의 파괴력으로 날아갑니다!",limit:null},
+   atkSkill:{name:"독침 공격",desc:"다음 발사가 2배 파워로 날아가요!",icon:"🦂",type:"double_power",flavorText:"치명적인 독침이 2배의 파괴력으로 날아갑니다!",limit:null},
    defSkill:{name:"어둠의 암살 은신",desc:"상대 턴에 내 별 하나가 상대 별로 위장해요!",icon:"🌑",type:"cond_disguise",flavorText:"어둠 속으로 사라져 적으로 위장한 채 공격을 피합니다!",limit:null},
    starPositions:[[50,40],[35,50],[65,50],[40,65],[60,70]]},
 
@@ -169,13 +169,17 @@ const ZODIAC=[
 
 const B=500,R=22,FRIC=0.92,CD=3;
 function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+// 별자리 모양을 90° 돌려 각자 진영(P1 왼쪽 / P2 오른쪽)에 배치 — 별 사이 거리는 그대로 유지
+// (기존 방식은 두 진영이 중앙에서 겹쳐 같은 좌표에 별이 놓이기도 했음)
 function initStars(z,p){
-  return z.starPositions.map((pos,i)=>({
+  return z.starPositions.map((pos,i)=>{
+    const x=B*(0.25+(pos[1]-53.5)/100), y=B*(pos[0]-7.5)/100;
+    return {
     id:`p${p}_s${i}`,player:p,
-    x:p===1?pos[0]*B/100:B-pos[0]*B/100,
-    y:p===1?pos[1]*B/100:B-pos[1]*B/100,
+    x:p===1?x:B-x,
+    y:p===1?y:B-y,
     vx:0,vy:0,alive:true,frozen:false,shielded:false,revive:false,glowing:false,
-  }));
+  };});
 }
 
 // ── Web Audio — iOS/iPad 사운드 잠금 해제 ──────────────────────────
@@ -542,7 +546,7 @@ function HudCard({zodiac,liveCount,isActive,player}){
       h("div",{style:{fontSize:9,color:col,fontWeight:700}},`P${player}`),
       h("div",{style:{fontSize:11,color:zodiac.color,fontWeight:800,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},zodiac.name),
       h("div",{style:{display:"flex",gap:3,marginTop:3}},
-        Array.from({length:5},(_,i)=>h("div",{key:i,style:{width:7,height:7,borderRadius:"50%",
+        Array.from({length:Math.max(5,liveCount)},(_,i)=>h("div",{key:i,style:{width:7,height:7,borderRadius:"50%",
           background:i<liveCount?zodiac.color:"rgba(255,255,255,0.12)",
           boxShadow:i<liveCount?`0 0 4px ${zodiac.color}`:"none",transition:"all 0.3s"}}))
       )
@@ -640,11 +644,15 @@ function App(){
         for(let j=i+1;j<next.length;j++){
           const a=next[i],b=next[j];
           if(!a.alive||!b.alive)continue;
-          // ghost: 충돌 무시하고 ghost 해제
-          if(a.ghost){a.ghost=false;continue;}
-          if(b.ghost){b.ghost=false;continue;}
           const d=dist(a,b);
           if(d<R*2&&d>0){
+            // ghost: 상대 별과 처음 부딪히는 순간 소모되고, 0.6초 동안 통과
+            if(a.player!==b.player){
+              const now=Date.now();
+              if(a.ghost){a.ghost=false;a.ghostUntil=now+600;}
+              if(b.ghost){b.ghost=false;b.ghostUntil=now+600;}
+              if((a.ghostUntil||0)>now||(b.ghostUntil||0)>now)continue;
+            }
             const nx=(b.x-a.x)/d,ny=(b.y-a.y)/d,ov=R*2-d;
             a.x-=nx*ov/2;a.y-=ny*ov/2;b.x+=nx*ov/2;b.y+=ny*ov/2;
             const rv=a.vx-b.vx,ry=a.vy-b.vy,dot=rv*nx+ry*ny;
@@ -688,11 +696,13 @@ function App(){
                 // lockdown: 공격자 별을 얼림
                 if(ads[defP]==="lockdown"&&!b.shielded&&Math.abs(dot)>3){
                   atkStar.frozen=true;atkStar.vx=0;atkStar.vy=0;
-                  setTimeout(()=>{setStars(pr=>pr.map(s=>s.id===atkStar.id?{...s,frozen:false}:s));setActiveDefSkill(p=>({...p,[defP]:null}));setLog("🔒 발목잡기 발동!");},3000);
+                  setTimeout(()=>{setActiveDefSkill(p=>({...p,[defP]:null}));setLog("🔒 발목잡기 발동!");},0);
+                  setTimeout(()=>setStars(pr=>pr.map(s=>s.id===atkStar.id?{...s,frozen:false}:s)),3000);
                 }
                 if(ads[defP2]==="lockdown"&&!a.shielded&&Math.abs(dot)>3){
                   atkStar2.frozen=true;atkStar2.vx=0;atkStar2.vy=0;
-                  setTimeout(()=>{setStars(pr=>pr.map(s=>s.id===atkStar2.id?{...s,frozen:false}:s));setActiveDefSkill(p=>({...p,[defP2]:null}));setLog("🔒 발목잡기 발동!");},3000);
+                  setTimeout(()=>{setActiveDefSkill(p=>({...p,[defP2]:null}));setLog("🔒 발목잡기 발동!");},0);
+                  setTimeout(()=>setStars(pr=>pr.map(s=>s.id===atkStar2.id?{...s,frozen:false}:s)),3000);
                 }
                 // cond_reverse: 피격 시 공격자 다음 턴 반전
                 if(ads[defP]==="cond_reverse"&&!b.shielded&&Math.abs(dot)>3){
@@ -705,11 +715,6 @@ function App(){
             }
           }
         }
-      }
-      // knockback 1회 사용 후 해제
-      if(kbOn[1]||kbOn[2]){
-        const anyHit=next.some(s=>s.player===1&&Math.abs(s.vx)>0.5)||next.some(s=>s.player===2&&Math.abs(s.vx)>0.5);
-        if(anyHit)setTimeout(()=>setKnockbackOn({1:false,2:false}),100);
       }
       for(const s of next){
         if(!s.alive)continue;
@@ -815,6 +820,7 @@ function App(){
         setTimeout(()=>setStars(prev=>prev.map(s=>s.id===star.id?{...s,glowing:false}:s)),800);
         if(dblPow[t])setDblPow(p=>({...p,[t]:false}));
         // double_shot: 0.9초 후 같은 별 같은 방향으로 한 번 더
+        if(knockbackOnRef.current[t])setTimeout(()=>setKnockbackOn(p=>({...p,[t]:false})),1500);
         if(dblShot[t]){
           setDblShot(p=>({...p,[t]:false}));
           setTimeout(()=>setStars(prev=>prev.map(s=>s.id===star.id&&s.alive?{...s,vx,vy}:s)),900);
@@ -879,7 +885,7 @@ function App(){
       return;
     }
     if(type==="double_power"){
-      setDblPow(p=>({...p,[t]:true}));setLog(`⚡ ${skillDef.name} 발동! 다음 공격 3배!`);
+      setDblPow(p=>({...p,[t]:true}));setLog(`⚡ ${skillDef.name} 발동! 다음 공격 2배!`);
       setTurn(tt=>tt===1?2:1);
     }else if(type==="double_turn"){
       setDblTurn(p=>({...p,[t]:true}));setLog(`🐂 ${skillDef.name} 발동! 한 번 더 발사하세요!`);
@@ -888,8 +894,8 @@ function App(){
       setDblShot(p=>({...p,[t]:true}));setLog(`🐏 ${skillDef.name} 발동! 발사 후 한 번 더!`);
       setTurn(tt=>tt===1?2:1);
     }else if(type==="knockback"){
-      setKnockbackOn(p=>({...p,[t]:true}));setLog(`👊 ${skillDef.name} 발동! 이번 발사 충격 2.5배!`);
-      setTurn(tt=>tt===1?2:1);
+      setKnockbackOn(p=>({...p,[t]:true}));setLog(`👊 ${skillDef.name} 발동! 이제 발사하세요 — 충격 2.5배!`);
+      // 턴 유지: 이번 발사에 적용
     }else if(type==="ghost"){
       const mine=starsRef.current.filter(s=>s.player===t&&s.alive);
       if(mine.length>0){
@@ -1001,6 +1007,7 @@ function App(){
     const setCdFn=isAtk?setAtkCd:setDefCd;
     const cdVal=isAtk?atkCd[t]:defCd[t];
     const useKey=isAtk?"atk":"def";
+    if(piercingState||snipeState){setLog("⚠️ 진행 중인 스킬의 대상을 먼저 선택하세요!");return;}
     if(cdVal>0){setLog(`⏳ ${skillDef.name} — ${cdVal}턴 후 사용 가능`);return;}
     if(skillDef.limit!==null&&skillUses[t][useKey]>=skillDef.limit){
       setLog(`❌ ${skillDef.name} — 이미 ${skillDef.limit}회 모두 사용했어요!`);return;
@@ -1047,20 +1054,23 @@ function App(){
     if(phase!=="game")return;
     const opp=turn===1?2:1;
     const ads=activeDefSkillRef.current;
-    if(ads[opp]==="cond_disguise"){
-      const alreadyDisguised=starsRef.current.filter(s=>s.player===opp&&s.alive&&s.disguised);
-      if(alreadyDisguised.length===0){
-        const mine=starsRef.current.filter(s=>s.player===opp&&s.alive&&!s.disguised);
-        if(mine.length>0){
-          const tg=mine[Math.floor(Math.random()*mine.length)];
-          setStars(prev=>prev.map(s=>s.id===tg.id?{...s,disguised:true}:s));
+    const pickIdx=Math.random();
+    setStars(prev=>{
+      // 내 턴이 되면 내 위장은 풀림 (위장은 상대 턴에만)
+      let next=prev.map(s=>s.player===turn&&s.disguised?{...s,disguised:false}:s);
+      if(ads[opp]==="cond_disguise"){
+        if(!next.some(s=>s.player===opp&&s.alive&&s.disguised)){
+          const mine=next.filter(s=>s.player===opp&&s.alive);
+          if(mine.length>0){
+            const tg=mine[Math.floor(pickIdx*mine.length)];
+            next=next.map(s=>s.id===tg.id?{...s,disguised:true}:s);
+          }
         }
+      }else{
+        next=next.map(s=>s.player===opp&&s.disguised?{...s,disguised:false}:s);
       }
-      // 이미 위장 중이면 유지 (새로 바꾸지 않음)
-    }else{
-      // 위장 스킬 비활성화 시에만 해제
-      setStars(prev=>prev.map(s=>s.player===opp&&s.disguised?{...s,disguised:false}:s));
-    }
+      return next;
+    });
   },[turn,phase]);
 
   function startGame(){
@@ -1099,7 +1109,7 @@ function App(){
       h("div",{style:{position:"absolute",top:"46%",left:"50%",
         transform:"translate(-50%,-50%)"}},
         h("button",{
-          onClick:()=>setPhase("select"),
+          onClick:()=>{setStep(1);setP1Z(null);setP2Z(null);setDiceRolls({1:0,2:0});setDiceResult({1:null,2:null});setPhase("select");},
           style:{padding:"14px 38px",borderRadius:32,
             border:"2px solid #FFE66D",
             background:"rgba(0,0,0,0.72)",
@@ -1450,6 +1460,8 @@ function App(){
                 glowing:isDrag||star.glowing||isSelected,
                 frozen:star.frozen,shielded:star.shielded,isDragging:isDrag,
                 player:star.player,disguised:star.disguised}),
+              // 하얀 환영(ghost) 대기 표시
+              star.ghost&&h("circle",{cx:star.x,cy:star.y,r:R+4,fill:"none",stroke:"rgba(230,230,255,0.85)",strokeWidth:1.5,strokeDasharray:"2,3",pointerEvents:"none"}),
               // 소환별 표시
               star.summon&&h("circle",{cx:star.x,cy:star.y,r:R+6,
                 fill:"none",stroke:"#90EE90",strokeWidth:1.5,opacity:0.7},
