@@ -151,6 +151,7 @@ h1,h2,.disp{font-family:var(--display);font-weight:400;margin:0;text-wrap:balanc
 .timer{height:12px;background:#0006;border-radius:8px;overflow:hidden;position:relative}
 .timer i{position:absolute;inset:0 auto 0 0;width:100%;background:linear-gradient(90deg,var(--bad),var(--gold),var(--ok));transform-origin:left}
 .tsec{font-family:var(--display);font-size:18px;color:var(--gold);display:flex;align-items:center;gap:6px;justify-content:center;font-variant-numeric:tabular-nums}
+.tsec .bonus{font-size:13px;color:var(--ok);background:#16443a;border-radius:10px;padding:2px 8px;margin-left:4px}
 .result{border-radius:16px;padding:12px 14px;line-height:1.55;font-size:15px;display:flex;flex-direction:column;gap:4px}
 .result.ok{background:#16443a;color:#d6fff0}
 .result.bad{background:#47182a;color:#ffe1e7}
@@ -256,6 +257,7 @@ const DIFFS = {
   super:  { label: '슈퍼', tiers: ['e', 'n', 'h'], time: null, aiAcc: 0.8 },
 };
 const SUPER_TIME = { e: 5, n: 7, h: 10 };
+const BIG_NUMBER_BONUS = 10; // 세 자리 수 계산은 10초 더
 
 // 카드: 공격력은 카드별 고정
 const CARDS = {
@@ -355,8 +357,9 @@ function makeProblem(diffKey, rng) {
     const c = Number.isInteger(p.ans.v) ? I(v) : { s: String(+v.toFixed(2)), v };
     if (c.v > 0 && !seen.has(c.v.toFixed(6))) { seen.add(c.v.toFixed(6)); choices.push(c); }
   }
-  const time = DIFFS[diffKey].time || SUPER_TIME[tier];
-  return { q: p.q, ans: p.ans, choices: shuffle(choices, rng), tip: p.tip, tier, time };
+  const bonus = /(^|[^\d.])\d{3,}(?![\d.])/.test(p.q) ? BIG_NUMBER_BONUS : 0; // 세 자리 이상 수가 나오면 시간 추가
+  const time = (DIFFS[diffKey].time || SUPER_TIME[tier]) + bonus;
+  return { q: p.q, ans: p.ans, choices: shuffle(choices, rng), tip: p.tip, tier, time, bonus };
 }
 
 function shuffle(a, rng) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -631,7 +634,7 @@ function ask(p, head, power, mode, aiCorrect) {
       <div class="qhead">${head}<span class="pw">공격력 ${power}</span></div>
       <div class="eq ${long ? 'long' : ''}">${fracHTML(p.q)}${p.q.includes('…') ? '' : ' = ?'}</div>
       <div class="choices">${p.choices.map((c, i) => `<button class="choice" data-c="${i}" ${mode === 'watch' ? 'disabled' : ''}>${fracHTML(c.s)}</button>`).join('')}</div>
-      ${mode === 'play' ? `<div class="timer"><i id="tbar"></i></div><div class="tsec">${svg('timer')}<span id="tsec">${p.time}</span>초</div>` : '<div class="tsec" style="color:var(--foe)">컴퓨터가 푸는 중…</div>'}
+      ${mode === 'play' ? `<div class="timer"><i id="tbar"></i></div><div class="tsec">${svg('timer')}<span id="tsec">${p.time}</span>초${p.bonus ? `<span class="bonus">세 자리 수 +${p.bonus}초</span>` : ''}</div>` : '<div class="tsec" style="color:var(--foe)">컴퓨터가 푸는 중…</div>'}
       <div id="qres"></div></div>`;
     L.hidden = false;
     let done = false, iv = null, to = null;

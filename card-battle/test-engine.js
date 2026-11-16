@@ -15,7 +15,9 @@ for (const d of Object.keys(E.DIFFS)) for (let i = 0; i < 5000; i++) {
   if (p.choices.length !== 4 || new Set(vals).size !== 4) fail(d, 'choices', p.q, p.choices.map(c => c.s));
   if (vals.filter(v => v === p.ans.v.toFixed(6)).length !== 1) fail(d, 'answer', p.q);
   const ev = evalQ(p.q); if (ev !== null && Math.abs(ev - p.ans.v) > 1e-9) fail(d, 'wrong answer', p.q, p.ans.s);
-  if (d !== 'super' && p.time !== E.DIFFS[d].time) fail(d, 'time', p.time);
+  const big = /(^|[^\d.])\d{3,}(?![\d.])/.test(p.q) ? 10 : 0; // 세 자리 수는 10초 더
+  const base = E.DIFFS[d].time || { e: 5, n: 7, h: 10 }[p.tier];
+  if (p.time !== base + big || (p.bonus || 0) !== big) fail(d, 'time', p.q, p.time);
 }
 // 2) 오답 피해: 카드 공격력의 10~50%, 정답은 100%
 for (const id of Object.keys(E.CARDS)) { const atk = E.CARDS[id].atk; if (!atk) continue;
